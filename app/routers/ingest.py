@@ -35,7 +35,7 @@ async def ingest_document(
     finally:
         tmp_path.unlink(missing_ok=True)
 
-    chunk_count = len(doc.chunks) if doc.chunks else 0
+    chunk_count = getattr(doc, "_chunk_count", 0)
 
     return IngestResponse(
         document_id=doc.id,

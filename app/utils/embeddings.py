@@ -1,29 +1,24 @@
-"""Embedding helper — uses OpenAI text-embedding-3-small by default."""
+"""Embedding helper — uses local sentence-transformers (all-MiniLM-L6-v2)."""
 
-from openai import AsyncOpenAI
+import asyncio
+from functools import lru_cache
 
-from app.config import settings
-
-_client: AsyncOpenAI | None = None
+from sentence_transformers import SentenceTransformer
 
 
-def _get_client() -> AsyncOpenAI:
-    global _client
-    if _client is None:
-        _client = AsyncOpenAI(api_key=settings.openai_api_key)
-    return _client
+@lru_cache(maxsize=1)
+def _get_model() -> SentenceTransformer:
+    return SentenceTransformer("all-MiniLM-L6-v2")
 
 
 async def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Embed a batch of texts, returning vectors of dimension embedding_dim."""
+    """Embed a batch of texts, returning 384-dim vectors."""
     if not texts:
         return []
-    client = _get_client()
-    response = await client.embeddings.create(
-        input=texts,
-        model=settings.embedding_model,
-    )
-    return [item.embedding for item in response.data]
+    model = _get_model()
+    # Run in thread pool to avoid blocking the async event loop
+    embeddings = await asyncio.to_thread(model.encode, texts, normalize_embeddings=True)
+    return embeddings.tolist()
 
 
 async def embed_single(text: str) -> list[float]:

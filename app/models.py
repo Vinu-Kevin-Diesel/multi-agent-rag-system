@@ -40,7 +40,7 @@ class DocumentChunk(Base):
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     page_number: Mapped[int | None] = mapped_column(Integer)
     element_type: Mapped[str | None] = mapped_column(String(64))
-    embedding = mapped_column(Vector(1536))
+    embedding = mapped_column(Vector(384))
     metadata_: Mapped[dict | None] = mapped_column(JSON, default={})
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()")

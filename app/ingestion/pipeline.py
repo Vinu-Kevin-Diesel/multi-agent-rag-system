@@ -61,4 +61,5 @@ class IngestionPipeline:
 
         await self.session.commit()
         await self.session.refresh(doc)
+        doc._chunk_count = len(chunks)
         return doc

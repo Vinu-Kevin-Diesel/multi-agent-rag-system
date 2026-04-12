@@ -35,7 +35,7 @@ def upgrade() -> None:
         sa.Column("chunk_index", sa.Integer, nullable=False),
         sa.Column("page_number", sa.Integer),
         sa.Column("element_type", sa.String(64)),
-        sa.Column("embedding", Vector(1536)),
+        sa.Column("embedding", Vector(384)),
         sa.Column("metadata_", sa.JSON, default={}),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
     )
