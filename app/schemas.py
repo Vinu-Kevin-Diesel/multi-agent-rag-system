@@ -32,6 +32,16 @@ class QueryResponse(BaseModel):
     retrieval_attempts: int
 
 
+class DocumentListItem(BaseModel):
+    id: UUID
+    filename: str
+    content_type: str | None
+    page_count: int | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class HealthResponse(BaseModel):
     status: str
     timestamp: datetime
