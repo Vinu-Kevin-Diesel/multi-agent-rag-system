@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents import build_agent_graph
 from app.database import get_session
-from app.dependencies import get_anthropic_client
+from app.dependencies import get_llm_client
 from app.schemas import QueryRequest, QueryResponse, SourceChunk
 
 router = APIRouter(tags=["query"])
@@ -14,13 +14,9 @@ async def query_documents(
     request: QueryRequest,
     session: AsyncSession = Depends(get_session),
 ):
-    """Query ingested documents using the multi-agent RAG system.
-
-    The router agent classifies the query, a specialized sub-agent generates
-    an answer, and the critic agent validates it — re-retrieving if needed.
-    """
+    """Query ingested documents using the multi-agent RAG system."""
     graph = build_agent_graph()
-    client = get_anthropic_client()
+    model = get_llm_client()
 
     initial_state = {
         "question": request.question,
@@ -32,7 +28,7 @@ async def query_documents(
         "document_id": request.document_id,
         "top_k": request.top_k,
         "session": session,
-        "client": client,
+        "client": model,
     }
 
     result = await graph.ainvoke(initial_state)

@@ -1,6 +1,7 @@
 """Comparative agent — synthesizes answers by comparing across multiple sources."""
 
-from anthropic import AsyncAnthropic
+from app.config import settings
+from app.agents.utils import extract_content
 
 COMPARATIVE_SYSTEM_PROMPT = """You are a comparative analysis agent for a document intelligence system.
 You compare information across multiple document chunks to answer questions that involve
@@ -10,7 +11,7 @@ Cite the source chunks that support each point."""
 
 
 async def run_comparative_agent(
-    client: AsyncAnthropic,
+    client,
     question: str,
     source_chunks: list[dict],
 ) -> str:
@@ -20,15 +21,12 @@ async def run_comparative_agent(
         for i, c in enumerate(source_chunks)
     )
 
-    response = await client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=2048,
-        system=COMPARATIVE_SYSTEM_PROMPT,
+    response = await client.chat.completions.create(
+        model=settings.llm_model,
+        max_tokens=4096,
         messages=[
-            {
-                "role": "user",
-                "content": f"Source chunks:\n{context}\n\nComparative question: {question}",
-            }
+            {"role": "system", "content": COMPARATIVE_SYSTEM_PROMPT},
+            {"role": "user", "content": f"Source chunks:\n{context}\n\nComparative question: {question}"},
         ],
     )
-    return response.content[0].text
+    return extract_content(response)

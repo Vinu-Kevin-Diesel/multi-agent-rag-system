@@ -2,6 +2,8 @@
 
 import numpy as np
 
+from app.config import settings
+from app.agents.utils import extract_content
 from app.utils.embeddings import embed_texts
 
 
@@ -17,7 +19,6 @@ async def score_answer(answer: str, source_chunks: list[dict]) -> float:
     answer_emb = np.array(embeddings[0])
     chunk_embs = np.array(embeddings[1:])
 
-    # Cosine similarity (embeddings are already normalized by most providers)
     norms_answer = np.linalg.norm(answer_emb)
     norms_chunks = np.linalg.norm(chunk_embs, axis=1)
 
@@ -33,20 +34,17 @@ async def generate_refined_query(
     answer: str,
     client,
 ) -> str:
-    """Ask Claude to produce a more targeted query when the critic rejects an answer."""
-    response = await client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=256,
-        system="Generate a refined search query to find better source material. Return ONLY the refined query.",
+    """Ask LLM to produce a more targeted query when the critic rejects an answer."""
+    response = await client.chat.completions.create(
+        model=settings.llm_model,
+        max_tokens=1024,
         messages=[
-            {
-                "role": "user",
-                "content": (
-                    f"Original question: {original_query}\n"
-                    f"Previous answer (low confidence): {answer}\n\n"
-                    "Generate a more specific search query to retrieve better source chunks."
-                ),
-            }
+            {"role": "system", "content": "Generate a refined search query to find better source material. Return ONLY the refined query."},
+            {"role": "user", "content": (
+                f"Original question: {original_query}\n"
+                f"Previous answer (low confidence): {answer}\n\n"
+                "Generate a more specific search query to retrieve better source chunks."
+            )},
         ],
     )
-    return response.content[0].text.strip()
+    return extract_content(response).strip()

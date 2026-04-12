@@ -1,6 +1,7 @@
 """Multi-hop agent — chain-of-thought reasoning over multiple retrieval steps."""
 
-from anthropic import AsyncAnthropic
+from app.config import settings
+from app.agents.utils import extract_content
 
 MULTIHOP_SYSTEM_PROMPT = """You are a multi-hop reasoning agent for a document intelligence system.
 For complex questions requiring chained reasoning:
@@ -12,7 +13,7 @@ Show your reasoning chain clearly. Cite sources for each step."""
 
 
 async def run_multihop_agent(
-    client: AsyncAnthropic,
+    client,
     question: str,
     source_chunks: list[dict],
 ) -> str:
@@ -22,15 +23,12 @@ async def run_multihop_agent(
         for i, c in enumerate(source_chunks)
     )
 
-    response = await client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=2048,
-        system=MULTIHOP_SYSTEM_PROMPT,
+    response = await client.chat.completions.create(
+        model=settings.llm_model,
+        max_tokens=4096,
         messages=[
-            {
-                "role": "user",
-                "content": f"Source chunks:\n{context}\n\nMulti-hop question: {question}",
-            }
+            {"role": "system", "content": MULTIHOP_SYSTEM_PROMPT},
+            {"role": "user", "content": f"Source chunks:\n{context}\n\nMulti-hop question: {question}"},
         ],
     )
-    return response.content[0].text
+    return extract_content(response)

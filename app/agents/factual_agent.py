@@ -1,6 +1,7 @@
 """Factual agent — direct retrieval and answer generation for fact-based queries."""
 
-from anthropic import AsyncAnthropic
+from app.config import settings
+from app.agents.utils import extract_content
 
 FACTUAL_SYSTEM_PROMPT = """You are a precise factual question answering agent.
 Answer the user's question using ONLY the provided source chunks.
@@ -9,7 +10,7 @@ Be concise and cite which source chunk(s) support your answer."""
 
 
 async def run_factual_agent(
-    client: AsyncAnthropic,
+    client,
     question: str,
     source_chunks: list[dict],
 ) -> str:
@@ -19,15 +20,12 @@ async def run_factual_agent(
         for i, c in enumerate(source_chunks)
     )
 
-    response = await client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=1024,
-        system=FACTUAL_SYSTEM_PROMPT,
+    response = await client.chat.completions.create(
+        model=settings.llm_model,
+        max_tokens=4096,
         messages=[
-            {
-                "role": "user",
-                "content": f"Source chunks:\n{context}\n\nQuestion: {question}",
-            }
+            {"role": "system", "content": FACTUAL_SYSTEM_PROMPT},
+            {"role": "user", "content": f"Source chunks:\n{context}\n\nQuestion: {question}"},
         ],
     )
-    return response.content[0].text
+    return extract_content(response)
