@@ -1,12 +1,15 @@
 import tempfile
+import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
 from app.ingestion import IngestionPipeline
-from app.schemas import IngestResponse
+from app.models import Document
+from app.schemas import DocumentListItem, IngestResponse
 
 router = APIRouter(tags=["ingestion"])
 
@@ -43,3 +46,29 @@ async def ingest_document(
         num_chunks=chunk_count,
         page_count=doc.page_count,
     )
+
+
+@router.get("/documents", response_model=list[DocumentListItem])
+async def list_documents(session: AsyncSession = Depends(get_session)):
+    """List all ingested documents."""
+    result = await session.execute(
+        select(Document).order_by(Document.created_at.desc())
+    )
+    return result.scalars().all()
+
+
+@router.delete("/documents/{document_id}")
+async def delete_document(
+    document_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+):
+    """Delete a document and all its chunks (cascades)."""
+    result = await session.execute(
+        select(Document).where(Document.id == document_id)
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    await session.delete(doc)
+    await session.commit()
+    return {"status": "deleted", "document_id": str(document_id)}
