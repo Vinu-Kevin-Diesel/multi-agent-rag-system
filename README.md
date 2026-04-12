@@ -1,6 +1,6 @@
 # Autonomous Document Intelligence Agent
 
-A multi-agent RAG system that ingests heterogeneous documents through a 3-stage pipeline and routes queries to specialized sub-agents using LangGraph, Claude API, FastAPI, and pgvector.
+A multi-agent RAG system that ingests heterogeneous documents through a 3-stage pipeline and routes queries to specialized sub-agents using LangGraph, FastAPI, and pgvector. Features a React + Tailwind frontend for document management and interactive querying.
 
 ## Architecture
 
@@ -22,7 +22,7 @@ A multi-agent RAG system that ingests heterogeneous documents through a 3-stage 
                     +--------+---------+
                              |
                     +--------v---------+
-                    |  pgvector (HNSW) |
+                    |  pgvector (HNSW) |  384-dim vectors, cosine similarity
                     +------------------+
 
                     +------------------+
@@ -47,7 +47,7 @@ A multi-agent RAG system that ingests heterogeneous documents through a 3-stage 
                     +--------+---------+
                              |
                      confidence < 0.78?
-                        YES -> re-retrieve with refined query
+                        YES -> re-retrieve with refined query (up to 3 attempts)
                         NO  -> return answer
 ```
 
@@ -55,58 +55,85 @@ A multi-agent RAG system that ingests heterogeneous documents through a 3-stage 
 
 | Component | Technology |
 |---|---|
+| Frontend | React + Vite + TypeScript + Tailwind CSS |
 | Orchestration | LangGraph (StateGraph) |
-| LLM | Claude API (Anthropic) |
-| Embeddings | OpenAI text-embedding-3-small |
-| Vector DB | PostgreSQL 16 + pgvector (HNSW) |
-| API | FastAPI |
+| LLM | Kimi K2.5 via NVIDIA NIM (free, OpenAI-compatible) |
+| Embeddings | sentence-transformers `all-MiniLM-L6-v2` (local, 384-dim) |
+| Vector DB | PostgreSQL 16 + pgvector (HNSW index) |
+| API | FastAPI (async) |
 | Document Parsing | unstructured, pytesseract |
-| Chunking | sentence-transformers |
-| ORM | SQLAlchemy (async) |
+| Semantic Chunking | sentence-transformers (cosine similarity-based splits) |
+| ORM | SQLAlchemy 2.0 (async + asyncpg) |
 | Migrations | Alembic |
-| Containerization | Docker Compose |
+| Containerization | Docker Compose (3 services) |
+
+## Features
+
+- **Drag-and-drop document upload** supporting PDF, DOCX, HTML, TXT, and images
+- **Multi-agent query routing** -- automatically classifies queries as factual, comparative, or multi-hop
+- **Self-correcting retrieval** -- critic agent scores answers and triggers re-retrieval with refined queries if confidence is low
+- **Cross-document search** -- query across all ingested documents simultaneously
+- **Source attribution** -- every answer includes source chunks with page numbers and similarity scores
+- **Zero API cost** -- local embeddings (sentence-transformers) + free LLM tier (NVIDIA NIM)
 
 ## Quick Start
 
 ### Prerequisites
 
 - Docker & Docker Compose
-- Anthropic API key
-- OpenAI API key (for embeddings)
+- NVIDIA NIM API key (free from [build.nvidia.com](https://build.nvidia.com))
 
 ### Setup
 
 ```bash
 # Clone the repo
-git clone https://github.com/<your-username>/autonomous-document-intelligence-agent.git
-cd autonomous-document-intelligence-agent
+git clone https://github.com/Vinu-Kevin-Diesel/multi-agent-rag-system.git
+cd multi-agent-rag-system
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your API keys
+# Edit .env and add your NVIDIA_API_KEY
 
-# Start services
+# Start all services (db + backend + frontend)
 docker compose up --build
 ```
 
-The API will be available at `http://localhost:8000`.
+Three services will start:
+- **Frontend**: http://localhost:3000 (React UI)
+- **Backend API**: http://localhost:8000 (FastAPI + Swagger at /docs)
+- **Database**: PostgreSQL 16 + pgvector on port 5432
+
+### Usage
+
+1. Open http://localhost:3000
+2. **Upload** a PDF (or DOCX, HTML, TXT, image) via the sidebar
+3. **Select** a document or choose "All Documents" for cross-document search
+4. **Ask** a question and get a grounded answer with confidence score and source citations
 
 ### API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/ingest` | Upload and process a document |
+| `GET` | `/api/documents` | List all ingested documents |
+| `DELETE` | `/api/documents/{id}` | Delete a document and its chunks |
+| `POST` | `/api/query` | Query documents with natural language |
+| `GET` | `/health` | Health check |
 
 #### Ingest a Document
 
 ```bash
 curl -X POST http://localhost:8000/api/ingest \
-  -F "file=@report.pdf"
+  -F "file=@policy.pdf"
 ```
 
 Response:
 ```json
 {
   "document_id": "550e8400-e29b-41d4-a716-446655440000",
-  "filename": "report.pdf",
-  "num_chunks": 42,
-  "page_count": 12
+  "filename": "policy.pdf",
+  "num_chunks": 22,
+  "page_count": 5
 }
 ```
 
@@ -115,72 +142,119 @@ Response:
 ```bash
 curl -X POST http://localhost:8000/api/query \
   -H "Content-Type: application/json" \
-  -d '{"question": "What was the Q3 revenue?"}'
+  -d '{"question": "What are the coverage criteria?", "top_k": 5}'
 ```
 
 Response:
 ```json
 {
-  "answer": "The Q3 2024 revenue was $5.2 billion...",
+  "answer": "Based on the source chunks...",
   "query_type": "factual",
-  "confidence": 0.91,
+  "confidence": 0.87,
   "sources": [
     {
       "chunk_id": "...",
       "content": "...",
-      "page_number": 3,
-      "similarity": 0.94
+      "page_number": 1,
+      "similarity": 0.75
     }
   ],
   "retrieval_attempts": 1
 }
 ```
 
-#### Health Check
+## How It Works
 
-```bash
-curl http://localhost:8000/health
+### Document Ingestion Pipeline
+
+1. **Layout Detection** -- `unstructured` parses the uploaded file into typed regions (Title, NarrativeText, Table, Image, etc.)
+2. **OCR** -- Image regions are processed through `pytesseract` to extract text
+3. **Semantic Chunking** -- Sentences are grouped by semantic similarity using `all-MiniLM-L6-v2` embeddings. Chunk boundaries are created when cosine similarity drops below 0.5 or token count exceeds 512
+4. **Embedding & Storage** -- All chunks are embedded to 384-dim vectors and stored in pgvector with an HNSW index (m=16, ef_construction=64) for fast cosine similarity search
+
+### Query Pipeline (LangGraph)
+
+1. **Router Agent** -- Classifies the query as `factual`, `comparative`, or `multihop`
+2. **Retrieval** -- pgvector HNSW index finds the top-k most similar chunks
+3. **Specialized Agent** -- Routes to the appropriate agent for answer generation
+4. **Critic Agent** -- Scores the answer via embedding cosine similarity against source chunks
+5. **Retry Loop** -- If confidence < 0.78 and attempts < 3, the critic generates a refined query and re-retrieves
+
+## Project Structure
+
+```
+multi-agent-rag-system/
+├── app/
+│   ├── main.py                # FastAPI app + CORS middleware
+│   ├── config.py              # Settings (pydantic-settings)
+│   ├── models.py              # SQLAlchemy models + pgvector Vector(384)
+│   ├── database.py            # Async DB session
+│   ├── schemas.py             # Request/response Pydantic models
+│   ├── dependencies.py        # NVIDIA NIM client setup
+│   ├── ingestion/
+│   │   ├── pipeline.py        # 3-stage orchestrator
+│   │   ├── layout_detection.py
+│   │   ├── ocr.py
+│   │   └── chunking.py
+│   ├── agents/
+│   │   ├── graph.py           # LangGraph StateGraph
+│   │   ├── router_agent.py    # Query classifier
+│   │   ├── factual_agent.py
+│   │   ├── comparative_agent.py
+│   │   ├── multihop_agent.py
+│   │   ├── critic_agent.py    # Answer validation + query refinement
+│   │   └── utils.py           # Response content extraction helper
+│   ├── retrieval/
+│   │   └── vector_store.py    # pgvector HNSW similarity search
+│   └── utils/
+│       └── embeddings.py      # Local sentence-transformers embeddings
+├── frontend/
+│   ├── Dockerfile
+│   ├── package.json
+│   ├── vite.config.ts         # Vite dev server + API proxy
+│   ├── tailwind.config.js
+│   └── src/
+│       ├── App.tsx            # Main layout (sidebar + query area)
+│       ├── api/client.ts      # API client (fetch wrappers)
+│       ├── components/
+│       │   ├── DocumentUpload.tsx   # Drag-and-drop upload zone
+│       │   ├── DocumentList.tsx     # Document sidebar with delete
+│       │   ├── QueryInput.tsx       # Chat-style input
+│       │   ├── AnswerDisplay.tsx    # Markdown answer + badges
+│       │   ├── ConfidenceBadge.tsx  # Color-coded confidence bar
+│       │   ├── QueryTypeBadge.tsx   # factual/comparative/multihop pill
+│       │   ├── SourceCard.tsx       # Expandable source chunk
+│       │   └── SourceList.tsx       # Source cards container
+│       ├── hooks/              # useDocuments, useUpload, useQuery
+│       └── types/index.ts      # TypeScript interfaces
+├── alembic/                    # Database migrations
+├── tests/                      # pytest test suite
+├── docker-compose.yml          # 3 services: db + app + frontend
+├── Dockerfile                  # Python backend image
+└── .env.example                # Environment template
 ```
 
 ## Development
 
 ```bash
-# Install dependencies
-pip install -e ".[dev]"
-
-# Run migrations
-alembic upgrade head
+# Run only the backend + db (without frontend)
+docker compose up db app --build
 
 # Run tests
-pytest
+docker compose exec app pytest
 
-# Run server locally
-uvicorn app.main:app --reload
+# Access Swagger API docs
+open http://localhost:8000/docs
 ```
 
-## Project Structure
+## Environment Variables
 
-```
-app/
-├── main.py              # FastAPI application
-├── config.py            # Settings (pydantic-settings)
-├── models.py            # SQLAlchemy models + pgvector
-├── database.py          # Async DB session
-├── schemas.py           # Request/response models
-├── ingestion/
-│   ├── pipeline.py      # 3-stage orchestrator
-│   ├── layout_detection.py
-│   ├── ocr.py
-│   └── chunking.py
-├── agents/
-│   ├── graph.py         # LangGraph StateGraph
-│   ├── router_agent.py  # Query classifier
-│   ├── factual_agent.py
-│   ├── comparative_agent.py
-│   ├── multihop_agent.py
-│   └── critic_agent.py  # Answer validation
-├── retrieval/
-│   └── vector_store.py  # pgvector HNSW search
-└── utils/
-    └── embeddings.py    # Embedding helper
-```
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `NVIDIA_API_KEY` | Yes | -- | API key from build.nvidia.com |
+| `DATABASE_URL` | No | `postgresql+asyncpg://docagent:docagent@db:5432/docagent` | PostgreSQL connection |
+| `EMBEDDING_MODEL` | No | `all-MiniLM-L6-v2` | Local embedding model |
+| `CHUNK_SIZE` | No | `512` | Max tokens per chunk |
+| `CHUNK_OVERLAP` | No | `64` | Overlap tokens between chunks |
+| `CRITIC_SIMILARITY_THRESHOLD` | No | `0.78` | Min confidence to accept an answer |
+| `MAX_RETRIEVAL_ATTEMPTS` | No | `3` | Max retry loops for low-confidence answers |
