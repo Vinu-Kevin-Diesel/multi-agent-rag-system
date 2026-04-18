@@ -72,8 +72,14 @@ async def critic_node(state: AgentState) -> dict:
 
 
 async def refine_query_node(state: AgentState) -> dict:
-    """Generate a refined query for re-retrieval."""
+    """Generate a refined query for re-retrieval.
+
+    Guards against empty/trivial refinements by falling back to the original question.
+    """
     refined = await generate_refined_query(state["question"], state["answer"], state["client"])
+    # Sanity check: if the refined query is empty or too short, keep the original
+    if not refined or len(refined.strip()) < 5:
+        return {"question": state["question"]}
     return {"question": refined}
 
 
