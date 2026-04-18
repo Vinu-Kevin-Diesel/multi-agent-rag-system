@@ -21,6 +21,7 @@ async def query_documents(
     initial_state = {
         "question": request.question,
         "query_type": "",
+        "sub_questions": [],
         "source_chunks": [],
         "answer": "",
         "confidence": 0.0,
