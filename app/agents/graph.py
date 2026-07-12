@@ -142,14 +142,17 @@ async def critic_node(state: AgentState) -> dict:
 
 
 async def refine_query_node(state: AgentState) -> dict:
-    """Generate a refined query for re-retrieval.
+    """Generate a refined search query for re-retrieval.
 
-    Guards against empty/trivial refinements by falling back to the original question.
+    Refines from original_question rather than the previous refinement, so drift does
+    not compound across attempts. Falls back to original_question on a trivial refinement.
     Clears sub_questions so the refined query will be re-decomposed if multihop.
     """
-    refined = await generate_refined_query(state["question"], state["answer"], state["client"])
+    refined = await generate_refined_query(
+        state["original_question"], state["answer"], state["client"]
+    )
     if not refined or len(refined.strip()) < 5:
-        return {"question": state["question"], "sub_questions": []}
+        return {"question": state["original_question"], "sub_questions": []}
     return {"question": refined, "sub_questions": []}
 
 
