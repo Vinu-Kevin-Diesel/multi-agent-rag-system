@@ -52,8 +52,8 @@ class AgentState(TypedDict):
 # ── Nodes ─────────────────────────────────────────────────────────────────
 
 async def route_node(state: AgentState) -> dict:
-    """Classify the query type."""
-    query_type = await classify_query(state["client"], state["question"])
+    """Classify the query type from what the user actually asked."""
+    query_type = await classify_query(state["client"], state["original_question"])
     return {"query_type": query_type}
 
 
