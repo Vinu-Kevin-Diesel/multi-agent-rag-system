@@ -42,10 +42,9 @@ Merge each to `main` before starting the next.
 **Commit:** `fix: preserve original question across critic refinement loop`
 **Done when:** a query forced into ≥2 retries returns an answer addressing what you actually asked, with a test that fails on the old code.
 
-### Day 2 (Tue 14 Jul) — Delete the dead OCR stage + fix the vestigial tests
+### Day 2 (Tue 14 Jul) — Delete the dead OCR stage
 
-- [ ] `tests/conftest.py` — the `mock_anthropic` fixture stubs `client.messages.create` (Anthropic-style), but every agent calls `client.chat.completions.create` (OpenAI-style). The tests are left over from a pre-NIM version and cannot be exercising the code they claim to. Rename to `mock_llm` and stub the right call.
-
+- [x] ~~Fix the vestigial `mock_anthropic` fixture (stubs `client.messages.create`, Anthropic-style, while every agent calls `client.chat.completions.create`)~~ — **pulled forward to Day 1**, `453f0f1`. Also bind-mounted `./tests` (`5156dcf`); without it, editing a test silently re-ran the copy baked into the image.
 - [ ] Remove `app/ingestion/ocr.py` and its call in `pipeline.py`
 - [ ] Set an explicit `strategy` in `detect_layout` (unstructured OCRs internally)
 - [ ] Compile the LangGraph once at startup, not per-request (`query.py:18`)
