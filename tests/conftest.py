@@ -1,5 +1,7 @@
+from types import SimpleNamespace
+
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 from httpx import ASGITransport, AsyncClient
 
@@ -18,13 +20,44 @@ async def client():
         yield ac
 
 
+def chat_completion(content: str | None = None, reasoning_content: str | None = None):
+    """Build an OpenAI-shaped chat completion response.
+
+    Deliberately plain objects, not AsyncMock: a bare AsyncMock auto-creates any attribute
+    you touch, so a wrong-shaped mock fails silently and leaks a MagicMock into the code
+    under test instead of erroring. SimpleNamespace raises AttributeError on a shape
+    mismatch, which is what you want a mock to do.
+    """
+    message = SimpleNamespace(
+        content=content,
+        reasoning_content=reasoning_content,
+        model_extra=None,
+    )
+    return SimpleNamespace(choices=[SimpleNamespace(message=message)])
+
+
 @pytest.fixture
-def mock_anthropic():
-    mock_client = AsyncMock()
-    mock_response = AsyncMock()
-    mock_response.content = [AsyncMock(text="factual")]
-    mock_client.messages.create = AsyncMock(return_value=mock_response)
-    return mock_client
+def make_llm_client():
+    """Factory for a stub LLM client returning a canned chat completion.
+
+    Matches the OpenAI-compatible surface the agents actually call:
+    `client.chat.completions.create(...)`.
+    """
+
+    def _make(content: str | None = None, reasoning_content: str | None = None):
+        client = AsyncMock()
+        client.chat.completions.create = AsyncMock(
+            return_value=chat_completion(content, reasoning_content)
+        )
+        return client
+
+    return _make
+
+
+@pytest.fixture
+def mock_llm(make_llm_client):
+    """Stub LLM client that classifies everything as 'factual'."""
+    return make_llm_client(content="factual")
 
 
 @pytest.fixture
