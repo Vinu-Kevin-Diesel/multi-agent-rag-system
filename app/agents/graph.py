@@ -4,6 +4,10 @@ Flow:
     route → (factual/comparative: retrieve → agent)
           → (multihop:  decompose → multi_retrieve → multihop_agent)
     → critic → (refine → loop back) | done
+
+State carries two distinct strings: `original_question` is what the user asked and is what
+the agents must answer; `question` is the current search string, which the critic loop may
+refine. They start equal and diverge on the first refinement.
 """
 
 from __future__ import annotations
@@ -28,6 +32,9 @@ logger = logging.getLogger(__name__)
 
 
 class AgentState(TypedDict):
+    # What the user asked. Written once at entry; never mutated. Agents answer THIS.
+    original_question: str
+    # The current search string. The critic loop is free to refine it. Retrieval uses THIS.
     question: str
     query_type: str
     sub_questions: list[str]

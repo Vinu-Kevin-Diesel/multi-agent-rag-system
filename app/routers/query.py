@@ -19,6 +19,7 @@ async def query_documents(
     model = get_llm_client()
 
     initial_state = {
+        "original_question": request.question,
         "question": request.question,
         "query_type": "",
         "sub_questions": [],
