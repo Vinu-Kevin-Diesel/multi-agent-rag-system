@@ -112,19 +112,23 @@ async def multi_retrieve_node(state: AgentState) -> dict:
 
 
 async def factual_node(state: AgentState) -> dict:
-    answer = await run_factual_agent(state["client"], state["question"], state["source_chunks"])
+    answer = await run_factual_agent(
+        state["client"], state["original_question"], state["source_chunks"]
+    )
     return {"answer": answer}
 
 
 async def comparative_node(state: AgentState) -> dict:
-    answer = await run_comparative_agent(state["client"], state["question"], state["source_chunks"])
+    answer = await run_comparative_agent(
+        state["client"], state["original_question"], state["source_chunks"]
+    )
     return {"answer": answer}
 
 
 async def multihop_node(state: AgentState) -> dict:
     answer = await run_multihop_agent(
         state["client"],
-        state["question"],
+        state["original_question"],
         state["source_chunks"],
         sub_questions=state.get("sub_questions"),
     )
