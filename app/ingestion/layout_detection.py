@@ -23,10 +23,14 @@ async def detect_layout(file_path: Path) -> list[DocumentRegion]:
 
     regions: list[DocumentRegion] = []
     for el in elements:
+        content = str(el)
+        if not content.strip():
+            continue
+
         meta = el.metadata
         regions.append(
             DocumentRegion(
-                content=str(el),
+                content=content,
                 element_type=el.category,
                 page_number=getattr(meta, "page_number", None),
                 metadata={

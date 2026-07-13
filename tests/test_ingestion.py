@@ -1,35 +1,60 @@
+from pathlib import Path
+from types import SimpleNamespace
+
 import pytest
 from unittest.mock import patch, AsyncMock
 
-from app.ingestion.layout_detection import DocumentRegion
-from app.ingestion.ocr import apply_ocr
+from app.ingestion.layout_detection import DocumentRegion, detect_layout
 from app.ingestion.chunking import semantic_chunk, Chunk
 
 
-@pytest.mark.asyncio
-async def test_ocr_passes_through_text_regions():
-    """Text regions should pass through OCR unchanged."""
-    regions = [
-        DocumentRegion(content="Hello world", element_type="NarrativeText", page_number=1),
-        DocumentRegion(content="Another paragraph", element_type="Title", page_number=1),
-    ]
-    result = await apply_ocr(regions)
-    assert len(result) == 2
-    assert result[0].content == "Hello world"
-    assert result[1].content == "Another paragraph"
+class FakeElement:
+    """Stand-in for an unstructured element: stringifies to its text, carries a category."""
+
+    def __init__(self, text: str, category: str = "NarrativeText", page_number: int | None = 1):
+        self._text = text
+        self.category = category
+        self.metadata = SimpleNamespace(page_number=page_number, coordinates=None, filename="f.pdf")
+
+    def __str__(self) -> str:
+        return self._text
 
 
 @pytest.mark.asyncio
-async def test_ocr_filters_empty_regions():
-    """Empty regions should be dropped."""
-    regions = [
-        DocumentRegion(content="", element_type="NarrativeText", page_number=1),
-        DocumentRegion(content="  ", element_type="NarrativeText", page_number=1),
-        DocumentRegion(content="Valid text", element_type="NarrativeText", page_number=2),
+async def test_detect_layout_keeps_text_regions():
+    """Text elements become regions, preserving content, type and page."""
+    elements = [
+        FakeElement("Hello world", category="NarrativeText", page_number=1),
+        FakeElement("Another paragraph", category="Title", page_number=2),
     ]
-    result = await apply_ocr(regions)
-    assert len(result) == 1
-    assert result[0].content == "Valid text"
+
+    with patch("app.ingestion.layout_detection.partition", return_value=elements):
+        regions = await detect_layout(Path("doc.pdf"))
+
+    assert [r.content for r in regions] == ["Hello world", "Another paragraph"]
+    assert [r.element_type for r in regions] == ["NarrativeText", "Title"]
+    assert [r.page_number for r in regions] == [1, 2]
+
+
+@pytest.mark.asyncio
+async def test_detect_layout_filters_empty_regions():
+    """Blank elements are dropped before they reach chunking.
+
+    This filter used to live in the (dead) OCR stage. Losing it would feed empty strings
+    into the encoder and produce meaningless chunks, so it is pinned here.
+    """
+    elements = [
+        FakeElement(""),
+        FakeElement("   \n  "),
+        FakeElement("Valid text", page_number=2),
+    ]
+
+    with patch("app.ingestion.layout_detection.partition", return_value=elements):
+        regions = await detect_layout(Path("doc.pdf"))
+
+    assert len(regions) == 1
+    assert regions[0].content == "Valid text"
+    assert regions[0].page_number == 2
 
 
 @pytest.mark.asyncio
