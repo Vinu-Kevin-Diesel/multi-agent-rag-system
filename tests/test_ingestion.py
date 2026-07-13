@@ -58,6 +58,24 @@ async def test_detect_layout_filters_empty_regions():
 
 
 @pytest.mark.asyncio
+async def test_detect_layout_passes_configured_strategy_to_unstructured(monkeypatch):
+    """The strategy setting must actually reach partition().
+
+    It is the only switch that turns OCR on for scanned PDFs ('hi_res'/'ocr_only') or off
+    ('fast'). If it silently stopped being forwarded, scanned documents would ingest as
+    empty and the failure would look like a bad document rather than a bad config.
+    """
+    monkeypatch.setattr("app.ingestion.layout_detection.settings.ingestion_strategy", "hi_res")
+
+    with patch(
+        "app.ingestion.layout_detection.partition", return_value=[FakeElement("text")]
+    ) as mock_partition:
+        await detect_layout(Path("scan.pdf"))
+
+    assert mock_partition.call_args.kwargs["strategy"] == "hi_res"
+
+
+@pytest.mark.asyncio
 async def test_semantic_chunk_produces_chunks():
     """Semantic chunking should produce non-empty chunks from regions."""
     regions = [

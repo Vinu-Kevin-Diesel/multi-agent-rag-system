@@ -13,6 +13,14 @@ class Settings(BaseSettings):
     chunk_size: int = 512
     chunk_overlap: int = 64
 
+    # How `unstructured` parses a document. OCR happens inside the library, not as a
+    # separate stage of ours:
+    #   auto     — extract embedded text where present, fall back to OCR where it isn't
+    #   fast     — text extraction only; no OCR (scanned pages come back empty)
+    #   hi_res   — layout model + OCR; slowest, best on scanned/complex PDFs
+    #   ocr_only — force OCR over every page, ignoring any embedded text
+    ingestion_strategy: str = "auto"
+
     critic_similarity_threshold: float = 0.78
     max_retrieval_attempts: int = 3
 
