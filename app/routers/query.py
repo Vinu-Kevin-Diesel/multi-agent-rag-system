@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents import build_agent_graph
+from app.agents import get_agent_graph
 from app.database import get_session
 from app.dependencies import get_llm_client
 from app.schemas import QueryRequest, QueryResponse, SourceChunk
@@ -15,7 +15,7 @@ async def query_documents(
     session: AsyncSession = Depends(get_session),
 ):
     """Query ingested documents using the multi-agent RAG system."""
-    graph = build_agent_graph()
+    graph = get_agent_graph()
     model = get_llm_client()
 
     initial_state = {

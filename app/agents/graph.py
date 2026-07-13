@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import math
 import uuid
+from functools import lru_cache
 from typing import Any, TypedDict
 
 from langgraph.graph import END, StateGraph
@@ -190,6 +191,16 @@ def should_retry(state: AgentState) -> str:
 
 
 # ── Graph construction ────────────────────────────────────────────────────
+
+@lru_cache(maxsize=1)
+def get_agent_graph() -> StateGraph:
+    """Return the compiled graph, building it on first use.
+
+    The graph is stateless — per-request state (session, client, question) is passed into
+    ainvoke — so one compiled instance is shared across all requests.
+    """
+    return build_agent_graph()
+
 
 def build_agent_graph() -> StateGraph:
     """Construct the LangGraph state graph."""

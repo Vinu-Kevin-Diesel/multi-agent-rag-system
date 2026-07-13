@@ -4,15 +4,22 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.agents import get_agent_graph
 from app.routers import health, ingest, query
 
 # Enable INFO-level logs for app modules (so router debug logs show up in docker logs)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s: %(message)s")
 logging.getLogger("app").setLevel(logging.INFO)
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Compile the agent graph up front so the cost lands at startup rather than on
+    # whoever happens to send the first query.
+    get_agent_graph()
+    logger.info("Agent graph compiled")
     yield
 
 
