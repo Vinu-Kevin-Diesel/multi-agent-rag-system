@@ -12,17 +12,19 @@ pipeline blindly trusts the LLM to behave, and prove with RAGAS that each compon
 - **Buffer days are 7, 14, 21.** Do not pre-spend them. Something will slip — probably Day 4 or Day 16.
 - Commit style follows the repo's existing convention: `feat:` / `fix:` / `refactor:` / `docs:` / `chore:` / `data:` / `eval:`.
 
-## Branch sequence
+## Branch workflow
+
+**One branch per day.** Branch off `main` at the start of the day, push at the end of it, open a PR.
 
 ```
-fix/pipeline-correctness   (Days 1-2)
-feat/local-model-infer     (Days 3-5)   <- current branch
-feat/structured-output     (Days 6-7)
-feat/router-classifier     (Days 8-10)
-feat/ragas-eval            (Days 11-21)
+day-NN-<slug>        e.g. day-03-provider-agnostic-client
 ```
 
-Merge each to `main` before starting the next.
+- Each change within the day is its own commit.
+- **Merge with a merge commit — never squash.** Squashing collapses the day's commits into one and destroys the dated history the GitHub contribution graph reads.
+- Commits only count toward the contribution graph once they land on `main`. A pushed branch alone shows nothing.
+
+*(Days 1-2 predate this rule and shared `fix/pipeline-correctness` — PR #5.)*
 
 ---
 
