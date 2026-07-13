@@ -45,13 +45,13 @@ Merge each to `main` before starting the next.
 ### Day 2 (Tue 14 Jul) — Delete the dead OCR stage
 
 - [x] ~~Fix the vestigial `mock_anthropic` fixture (stubs `client.messages.create`, Anthropic-style, while every agent calls `client.chat.completions.create`)~~ — **pulled forward to Day 1**, `453f0f1`. Also bind-mounted `./tests` (`5156dcf`); without it, editing a test silently re-ran the copy baked into the image.
-- [ ] Remove `app/ingestion/ocr.py` and its call in `pipeline.py`
-- [ ] Set an explicit `strategy` in `detect_layout` (unstructured OCRs internally)
-- [ ] Compile the LangGraph once at startup, not per-request (`query.py:18`)
-- [ ] Fix the README's Stage 2 claim
+- [x] Remove `app/ingestion/ocr.py` and its call in `pipeline.py` (`3a3d636`) — its one live behaviour, dropping blank regions, moved into `detect_layout` with its test
+- [x] Set an explicit `strategy` in `detect_layout` (`e20ac3f`) — now `settings.ingestion_strategy`, default `auto`
+- [x] Compile the LangGraph once at startup, not per-request (`9904b0e`) — memoised, warmed in the lifespan hook
+- [x] Fix the README's Stage 2 claim (`ddc29b3`)
+- [x] Drop `pytesseract` / `Pillow` as direct deps (`e707236`) — unstructured OCRs via its own `unstructured-pytesseract` fork
 
-**Commit:** `refactor: remove dead OCR stage, compile graph at startup`
-**Done when:** no unreachable module in `app/`; the README describes what the code actually does.
+**Done:** 12 tests green. **OCR now genuinely runs for the first time** — verified `detect_layout()` reading a PNG with no text layer via tesseract 5.5.0. It was advertised in the README, wired into the pipeline, and unreachable.
 
 ### Day 3 (Wed 15 Jul) — Provider-agnostic client
 
