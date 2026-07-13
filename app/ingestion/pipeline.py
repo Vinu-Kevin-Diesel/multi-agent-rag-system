@@ -1,4 +1,4 @@
-"""3-stage ingestion pipeline orchestrator."""
+"""Ingestion pipeline orchestrator."""
 
 import uuid
 from pathlib import Path
@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ingestion.chunking import semantic_chunk
 from app.ingestion.layout_detection import detect_layout
-from app.ingestion.ocr import apply_ocr
 from app.models import Document, DocumentChunk
 from app.utils.embeddings import embed_texts
 
@@ -17,19 +16,15 @@ class IngestionPipeline:
         self.session = session
 
     async def run(self, file_path: Path, filename: str, content_type: str | None = None) -> Document:
-        """Execute the full 3-stage ingestion pipeline.
+        """Execute the ingestion pipeline.
 
-        Stage 1: Layout detection
-        Stage 2: OCR for image regions
-        Stage 3: Semantic chunking + embedding
+        Stage 1: Layout detection (OCR happens inside `unstructured` — see detect_layout)
+        Stage 2: Semantic chunking + embedding
         """
         # Stage 1 — layout detection
         regions = await detect_layout(file_path)
 
-        # Stage 2 — OCR
-        regions = await apply_ocr(regions)
-
-        # Stage 3 — semantic chunking
+        # Stage 2 — semantic chunking
         chunks = await semantic_chunk(regions)
 
         # Compute embeddings in batch

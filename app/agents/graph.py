@@ -4,6 +4,10 @@ Flow:
     route → (factual/comparative: retrieve → agent)
           → (multihop:  decompose → multi_retrieve → multihop_agent)
     → critic → (refine → loop back) | done
+
+State carries two distinct strings: `original_question` is what the user asked and is what
+the agents must answer; `question` is the current search string, which the critic loop may
+refine. They start equal and diverge on the first refinement.
 """
 
 from __future__ import annotations
@@ -11,6 +15,7 @@ from __future__ import annotations
 import logging
 import math
 import uuid
+from functools import lru_cache
 from typing import Any, TypedDict
 
 from langgraph.graph import END, StateGraph
@@ -28,6 +33,9 @@ logger = logging.getLogger(__name__)
 
 
 class AgentState(TypedDict):
+    # What the user asked. Written once at entry; never mutated. Agents answer THIS.
+    original_question: str
+    # The current search string. The critic loop is free to refine it. Retrieval uses THIS.
     question: str
     query_type: str
     sub_questions: list[str]
@@ -45,8 +53,8 @@ class AgentState(TypedDict):
 # ── Nodes ─────────────────────────────────────────────────────────────────
 
 async def route_node(state: AgentState) -> dict:
-    """Classify the query type."""
-    query_type = await classify_query(state["client"], state["question"])
+    """Classify the query type from what the user actually asked."""
+    query_type = await classify_query(state["client"], state["original_question"])
     return {"query_type": query_type}
 
 
@@ -105,19 +113,23 @@ async def multi_retrieve_node(state: AgentState) -> dict:
 
 
 async def factual_node(state: AgentState) -> dict:
-    answer = await run_factual_agent(state["client"], state["question"], state["source_chunks"])
+    answer = await run_factual_agent(
+        state["client"], state["original_question"], state["source_chunks"]
+    )
     return {"answer": answer}
 
 
 async def comparative_node(state: AgentState) -> dict:
-    answer = await run_comparative_agent(state["client"], state["question"], state["source_chunks"])
+    answer = await run_comparative_agent(
+        state["client"], state["original_question"], state["source_chunks"]
+    )
     return {"answer": answer}
 
 
 async def multihop_node(state: AgentState) -> dict:
     answer = await run_multihop_agent(
         state["client"],
-        state["question"],
+        state["original_question"],
         state["source_chunks"],
         sub_questions=state.get("sub_questions"),
     )
@@ -131,14 +143,17 @@ async def critic_node(state: AgentState) -> dict:
 
 
 async def refine_query_node(state: AgentState) -> dict:
-    """Generate a refined query for re-retrieval.
+    """Generate a refined search query for re-retrieval.
 
-    Guards against empty/trivial refinements by falling back to the original question.
+    Refines from original_question rather than the previous refinement, so drift does
+    not compound across attempts. Falls back to original_question on a trivial refinement.
     Clears sub_questions so the refined query will be re-decomposed if multihop.
     """
-    refined = await generate_refined_query(state["question"], state["answer"], state["client"])
+    refined = await generate_refined_query(
+        state["original_question"], state["answer"], state["client"]
+    )
     if not refined or len(refined.strip()) < 5:
-        return {"question": state["question"], "sub_questions": []}
+        return {"question": state["original_question"], "sub_questions": []}
     return {"question": refined, "sub_questions": []}
 
 
@@ -176,6 +191,16 @@ def should_retry(state: AgentState) -> str:
 
 
 # ── Graph construction ────────────────────────────────────────────────────
+
+@lru_cache(maxsize=1)
+def get_agent_graph() -> StateGraph:
+    """Return the compiled graph, building it on first use.
+
+    The graph is stateless — per-request state (session, client, question) is passed into
+    ainvoke — so one compiled instance is shared across all requests.
+    """
+    return build_agent_graph()
+
 
 def build_agent_graph() -> StateGraph:
     """Construct the LangGraph state graph."""

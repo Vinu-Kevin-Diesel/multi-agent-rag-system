@@ -1,6 +1,6 @@
 # Autonomous Document Intelligence Agent
 
-A multi-agent RAG system that ingests heterogeneous documents through a 3-stage pipeline and routes queries to specialized sub-agents using LangGraph, FastAPI, and pgvector. Features a React + Tailwind frontend for document management and interactive querying.
+A multi-agent RAG system that ingests heterogeneous documents and routes queries to specialized sub-agents using LangGraph, FastAPI, and pgvector. Features a React + Tailwind frontend for document management and interactive querying.
 
 ## Architecture
 
@@ -11,14 +11,11 @@ A multi-agent RAG system that ingests heterogeneous documents through a 3-stage 
                              |
                     +--------v---------+
                     |  Layout Detection |  Stage 1: unstructured
+                    |   (+ OCR inside)  |  tesseract for images/scanned PDFs
                     +--------+---------+
                              |
                     +--------v---------+
-                    |       OCR        |  Stage 2: pytesseract
-                    +--------+---------+
-                             |
-                    +--------v---------+
-                    | Semantic Chunking |  Stage 3: sentence-transformers
+                    | Semantic Chunking |  Stage 2: sentence-transformers
                     +--------+---------+
                              |
                     +--------v---------+
@@ -61,7 +58,7 @@ A multi-agent RAG system that ingests heterogeneous documents through a 3-stage 
 | Embeddings | sentence-transformers `all-MiniLM-L6-v2` (local, 384-dim) |
 | Vector DB | PostgreSQL 16 + pgvector (HNSW index) |
 | API | FastAPI (async) |
-| Document Parsing | unstructured, pytesseract |
+| Document Parsing | unstructured (tesseract OCR for images / scanned PDFs) |
 | Semantic Chunking | sentence-transformers (cosine similarity-based splits) |
 | ORM | SQLAlchemy 2.0 (async + asyncpg) |
 | Migrations | Alembic |
@@ -167,18 +164,20 @@ Response:
 
 ### Document Ingestion Pipeline
 
-1. **Layout Detection** -- `unstructured` parses the uploaded file into typed regions (Title, NarrativeText, Table, Image, etc.)
-2. **OCR** -- Image regions are processed through `pytesseract` to extract text
-3. **Semantic Chunking** -- Sentences are grouped by semantic similarity using `all-MiniLM-L6-v2` embeddings. Chunk boundaries are created when cosine similarity drops below 0.5 or token count exceeds 512
-4. **Embedding & Storage** -- All chunks are embedded to 384-dim vectors and stored in pgvector with an HNSW index (m=16, ef_construction=64) for fast cosine similarity search
+1. **Layout Detection** -- `unstructured` parses the uploaded file into typed regions (Title, NarrativeText, Table, Image, etc.). OCR happens here rather than as a stage of its own: the library runs tesseract internally for standalone images and for PDF pages with no extractable text. `INGESTION_STRATEGY` controls it -- `fast` skips OCR, `hi_res` and `ocr_only` force it. Blank regions are dropped.
+2. **Semantic Chunking** -- Sentences are grouped by semantic similarity using `all-MiniLM-L6-v2` embeddings. Chunk boundaries are created when cosine similarity drops below 0.5 or token count exceeds 512
+3. **Embedding & Storage** -- All chunks are embedded to 384-dim vectors and stored in pgvector with an HNSW index (m=16, ef_construction=64) for fast cosine similarity search
 
 ### Query Pipeline (LangGraph)
 
 1. **Router Agent** -- Classifies the query as `factual`, `comparative`, or `multihop`
-2. **Retrieval** -- pgvector HNSW index finds the top-k most similar chunks
+2. **Retrieval** -- pgvector HNSW index finds the top-k most similar chunks. Multi-hop queries are first decomposed into sub-questions, each retrieved for independently, then merged and deduped
 3. **Specialized Agent** -- Routes to the appropriate agent for answer generation
 4. **Critic Agent** -- Scores the answer via embedding cosine similarity against source chunks
 5. **Retry Loop** -- If confidence < 0.78 and attempts < 3, the critic generates a refined query and re-retrieves
+
+The refined query drives *retrieval only*. Agents always answer the user's original question,
+so a rewritten search string can never become the question being answered.
 
 ## Project Structure
 
@@ -192,9 +191,8 @@ multi-agent-rag-system/
 │   ├── schemas.py             # Request/response Pydantic models
 │   ├── dependencies.py        # NVIDIA NIM client setup
 │   ├── ingestion/
-│   │   ├── pipeline.py        # 3-stage orchestrator
-│   │   ├── layout_detection.py
-│   │   ├── ocr.py
+│   │   ├── pipeline.py        # ingestion orchestrator
+│   │   ├── layout_detection.py # unstructured parsing (+ OCR)
 │   │   └── chunking.py
 │   ├── agents/
 │   │   ├── graph.py           # LangGraph StateGraph
@@ -254,6 +252,7 @@ open http://localhost:8000/docs
 | `NVIDIA_API_KEY` | Yes | -- | API key from build.nvidia.com |
 | `DATABASE_URL` | No | `postgresql+asyncpg://docagent:docagent@db:5432/docagent` | PostgreSQL connection |
 | `EMBEDDING_MODEL` | No | `all-MiniLM-L6-v2` | Local embedding model |
+| `INGESTION_STRATEGY` | No | `auto` | `unstructured` parse strategy: `auto`, `fast` (no OCR), `hi_res`, `ocr_only` |
 | `CHUNK_SIZE` | No | `512` | Max tokens per chunk |
 | `CHUNK_OVERLAP` | No | `64` | Overlap tokens between chunks |
 | `CRITIC_SIMILARITY_THRESHOLD` | No | `0.78` | Min confidence to accept an answer |

@@ -16,9 +16,11 @@ dependencies = [
     "langchain-core>=0.3.0",
     "openai>=1.55.0",
     "numpy>=1.26.0",
+    # OCR arrives with the [all-docs] extra, which pulls unstructured-pytesseract (their
+    # own fork) plus pdf2image and unstructured-inference. Plain `pytesseract` and `Pillow`
+    # were direct deps only because of the dead OCR stage; Pillow is still installed
+    # transitively. The tesseract binary itself is apt-installed in the Dockerfile.
     "unstructured[all-docs]>=0.16.0",
-    "pytesseract>=0.3.13",
-    "Pillow>=11.0.0",
     "python-magic>=0.4.27",
     "sentence-transformers>=3.3.0",
 ]

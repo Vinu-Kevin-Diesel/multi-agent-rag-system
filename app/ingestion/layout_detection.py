@@ -1,9 +1,17 @@
-"""Stage 1: Layout detection — identify structural regions in documents."""
+"""Stage 1: Layout detection — identify structural regions in documents.
+
+OCR lives here, not in a stage of its own: `unstructured` runs tesseract internally for
+standalone images and for PDF pages with no extractable text. Which of those paths it takes
+is governed by `settings.ingestion_strategy` — `fast` skips OCR entirely, `hi_res` and
+`ocr_only` force it. Blank regions are dropped before they reach chunking.
+"""
 
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from unstructured.partition.auto import partition
+
+from app.config import settings
 
 
 @dataclass
@@ -19,14 +27,18 @@ async def detect_layout(file_path: Path) -> list[DocumentRegion]:
 
     Handles PDFs, DOCX, images, HTML, plain text, and more.
     """
-    elements = partition(filename=str(file_path))
+    elements = partition(filename=str(file_path), strategy=settings.ingestion_strategy)
 
     regions: list[DocumentRegion] = []
     for el in elements:
+        content = str(el)
+        if not content.strip():
+            continue
+
         meta = el.metadata
         regions.append(
             DocumentRegion(
-                content=str(el),
+                content=content,
                 element_type=el.category,
                 page_number=getattr(meta, "page_number", None),
                 metadata={
