@@ -4,8 +4,9 @@
 def extract_content(response) -> str:
     """Extract text content from an OpenAI-compatible chat completion response.
 
-    Handles cases where content may be None (e.g., Kimi K2.5 thinking mode
-    puts output in reasoning_content instead of content).
+    Thinking models routinely leave `content` empty and put the output in a non-standard
+    field instead — `reasoning_content` is the common one. Hosted and local models alike do
+    this, so the fallback chain below is not provider-specific and must not become so.
     """
     choice = response.choices[0]
     msg = choice.message

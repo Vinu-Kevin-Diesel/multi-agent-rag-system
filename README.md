@@ -54,7 +54,7 @@ A multi-agent RAG system that ingests heterogeneous documents and routes queries
 |---|---|
 | Frontend | React + Vite + TypeScript + Tailwind CSS |
 | Orchestration | LangGraph (StateGraph) |
-| LLM | Kimi K2.5 via NVIDIA NIM (free, OpenAI-compatible) |
+| LLM | Any OpenAI-compatible endpoint — hosted (NVIDIA NIM, free tier) or local (Ollama / vLLM) |
 | Embeddings | sentence-transformers `all-MiniLM-L6-v2` (local, 384-dim) |
 | Vector DB | PostgreSQL 16 + pgvector (HNSW index) |
 | API | FastAPI (async) |
@@ -78,7 +78,9 @@ A multi-agent RAG system that ingests heterogeneous documents and routes queries
 ### Prerequisites
 
 - Docker & Docker Compose
-- NVIDIA NIM API key (free from [build.nvidia.com](https://build.nvidia.com))
+- An OpenAI-compatible LLM endpoint. Either:
+  - a free NVIDIA NIM API key from [build.nvidia.com](https://build.nvidia.com), or
+  - a local server (Ollama / vLLM) — set `LLM_BASE_URL` and no key is needed
 
 ### Setup
 
@@ -247,9 +249,22 @@ open http://localhost:8000/docs
 
 ## Environment Variables
 
+The LLM is reached over the OpenAI-compatible protocol, so any provider works — a hosted
+endpoint like NVIDIA NIM, or a local Ollama / vLLM server — by changing configuration only.
+
+The **judge** is configured separately from the **model under test** and is used solely by the
+evaluation harness. It never serves user traffic. Keeping them apart matters: scoring a
+model's answers with that same model measures self-consistency, not correctness.
+
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `NVIDIA_API_KEY` | Yes | -- | API key from build.nvidia.com |
+| `LLM_MODEL` | No | `deepseek-ai/deepseek-v4-flash` | Model that answers user queries |
+| `LLM_BASE_URL` | No | `https://integrate.api.nvidia.com/v1` | Any OpenAI-compatible endpoint (e.g. `http://host.docker.internal:11434/v1` for Ollama) |
+| `LLM_API_KEY` | No | falls back to `NVIDIA_API_KEY` | Ignored by local servers |
+| `JUDGE_MODEL` | No | `deepseek-ai/deepseek-v4-flash` | Model used by the evaluation harness |
+| `JUDGE_BASE_URL` | No | `https://integrate.api.nvidia.com/v1` | Endpoint for the judge |
+| `JUDGE_API_KEY` | No | falls back to `NVIDIA_API_KEY` | |
+| `NVIDIA_API_KEY` | No | -- | Legacy single-key setting; still honoured as the fallback for both keys above. Free key from build.nvidia.com |
 | `DATABASE_URL` | No | `postgresql+asyncpg://docagent:docagent@db:5432/docagent` | PostgreSQL connection |
 | `EMBEDDING_MODEL` | No | `all-MiniLM-L6-v2` | Local embedding model |
 | `INGESTION_STRATEGY` | No | `auto` | `unstructured` parse strategy: `auto`, `fast` (no OCR), `hi_res`, `ocr_only` |
