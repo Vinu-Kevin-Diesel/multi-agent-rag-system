@@ -16,8 +16,12 @@ pipeline blindly trusts the LLM to behave, and prove with RAGAS that each compon
 
 **One branch per day.** Branch off `main` at the start of the day, push at the end of it, open a PR.
 
+Name the branch after **the problem being solved**, never the day number — the history should make sense to someone who has never seen this plan:
+
 ```
-day-NN-<slug>        e.g. day-03-provider-agnostic-client
+feat/provider-agnostic-llm-client      not  day-03-...
+feat/local-inference-ollama            not  day-04-...
+feat/constrained-router-output         not  day-06-...
 ```
 
 - Each change within the day is its own commit.
