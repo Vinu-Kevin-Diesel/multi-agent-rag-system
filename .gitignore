@@ -41,3 +41,6 @@ Thumbs.db
 .pytest_cache/
 htmlcov/
 .coverage
+
+# Internal working plan — local only, not published
+PLAN.md
