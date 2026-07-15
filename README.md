@@ -91,7 +91,8 @@ cd multi-agent-rag-system
 
 # Configure environment
 cp .env.example .env
-# Edit .env and add your NVIDIA_API_KEY
+# Edit .env — add an NVIDIA_API_KEY for the hosted path, or configure a local
+# model (see "Running with a local model" below)
 
 # Start all services (db + backend + frontend)
 docker compose up --build
@@ -101,6 +102,41 @@ Three services will start:
 - **Frontend**: http://localhost:3000 (React UI)
 - **Backend API**: http://localhost:8000 (FastAPI + Swagger at /docs)
 - **Database**: PostgreSQL 16 + pgvector on port 5432
+
+### Running with a local model (Ollama)
+
+The model that answers queries can run entirely on your own GPU — no API cost, no data
+leaving the machine. Ollama runs **natively on the host**, not in Docker: GPU passthrough
+into Compose on Windows is a WSL2 detour, and Ollama ships its own CUDA runtime.
+
+```powershell
+# One-time host setup: sets the env vars that matter, restarts Ollama, pulls the model
+./scripts/setup-ollama.ps1
+```
+
+Then point the app at it in `.env`:
+
+```bash
+LLM_MODEL=qwen3:8b
+LLM_BASE_URL=http://host.docker.internal:11434/v1
+LLM_API_KEY=ollama                      # ignored by Ollama; the OpenAI SDK just needs a value
+```
+
+The container reaches the host server through `host.docker.internal` (wired into
+`docker-compose.yml`). The **judge** stays on a hosted model — see [Environment Variables](#environment-variables).
+
+Two settings decide whether this works well:
+
+- **`OLLAMA_HOST=0.0.0.0`** — Ollama binds to `127.0.0.1` by default, which the container
+  *cannot* reach. Without this, every request fails with a connection refused. The setup
+  script handles it.
+- **`OLLAMA_CONTEXT_LENGTH=16384`** — big enough for the ~8–10k-token prompts the multi-hop
+  path builds, small enough that weights + KV cache fit fully in 12 GB VRAM. Too large and
+  the model spills to CPU (`ollama ps` shows a CPU/GPU split instead of `100% GPU`); too
+  small and long prompts are silently truncated, dropping your source chunks.
+
+Reference point: on an RTX 5070 (12 GB), `qwen3:8b` sits fully on the GPU at 16384 context,
+and a factual query round-trips in ~30–40s (the local 8B thinks before answering).
 
 ### Usage
 
