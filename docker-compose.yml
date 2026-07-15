@@ -20,6 +20,11 @@ services:
     ports:
       - "8000:8000"
     env_file: .env
+    # Reach a model server running on the host (e.g. Ollama on :11434) via
+    # host.docker.internal. Explicit host-gateway mapping keeps this working across
+    # Docker Desktop and Linux; set LLM_BASE_URL=http://host.docker.internal:11434/v1.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy
