@@ -16,6 +16,7 @@ import logging
 import math
 import uuid
 from functools import lru_cache
+from itertools import zip_longest
 from typing import Any, TypedDict
 
 from langgraph.graph import END, StateGraph
@@ -26,6 +27,7 @@ from app.agents.decompose import decompose_question
 from app.agents.factual_agent import run_factual_agent
 from app.agents.multihop_agent import run_multihop_agent
 from app.agents.router_agent import classify_query
+from app.agents.utils import fit_chunks_to_budget
 from app.config import settings
 from app.retrieval.vector_store import similarity_search
 
@@ -66,8 +68,9 @@ async def retrieve_node(state: AgentState) -> dict:
         top_k=state["top_k"],
         document_id=state.get("document_id"),
     )
+    # Chunks arrive best-first, so a prefix trim keeps the most relevant evidence.
     return {
-        "source_chunks": chunks,
+        "source_chunks": fit_chunks_to_budget(chunks, settings.max_context_tokens),
         "retrieval_attempts": state.get("retrieval_attempts", 0) + 1,
     }
 
@@ -85,29 +88,41 @@ async def multi_retrieve_node(state: AgentState) -> dict:
     # Allocate a fair share of chunks per sub-question (min 3 each)
     per_sub = max(3, math.ceil(top_k_total / len(sub_qs)))
 
+    per_sub_results: list[list[dict]] = []
+    for sq in sub_qs:
+        per_sub_results.append(
+            await similarity_search(
+                session=state["session"],
+                query=sq,
+                top_k=per_sub,
+                document_id=state.get("document_id"),
+            )
+        )
+
+    # Interleave round-robin (each sub-question's best chunk, then each one's second, ...)
+    # rather than concatenating per-sub-question blocks. The budget guard keeps a prefix, so
+    # concatenated blocks would let the first sub-question consume the whole budget and
+    # starve the rest — silently breaking the hop the decomposition exists to serve.
     all_chunks: list[dict] = []
     seen_ids: set[str] = set()
-
-    for sq in sub_qs:
-        chunks = await similarity_search(
-            session=state["session"],
-            query=sq,
-            top_k=per_sub,
-            document_id=state.get("document_id"),
-        )
-        for c in chunks:
+    for rank_row in zip_longest(*per_sub_results):
+        for c in rank_row:
+            if c is None:
+                continue
             chunk_id = str(c.get("chunk_id", ""))
             if chunk_id and chunk_id not in seen_ids:
                 seen_ids.add(chunk_id)
                 all_chunks.append(c)
 
+    budgeted = fit_chunks_to_budget(all_chunks, settings.max_context_tokens)
+
     logger.info(
-        "[multi_retrieve] %d sub-questions -> %d unique chunks (per_sub=%d)",
-        len(sub_qs), len(all_chunks), per_sub,
+        "[multi_retrieve] %d sub-questions -> %d unique chunks (per_sub=%d) -> %d after budget",
+        len(sub_qs), len(all_chunks), per_sub, len(budgeted),
     )
 
     return {
-        "source_chunks": all_chunks,
+        "source_chunks": budgeted,
         "retrieval_attempts": state.get("retrieval_attempts", 0) + 1,
     }
 
