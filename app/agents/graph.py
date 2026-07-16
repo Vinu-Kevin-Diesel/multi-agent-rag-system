@@ -14,8 +14,10 @@ from __future__ import annotations
 
 import logging
 import math
+import time
 import uuid
-from functools import lru_cache
+from collections.abc import Callable
+from functools import lru_cache, wraps
 from itertools import zip_longest
 from typing import Any, TypedDict
 
@@ -52,14 +54,38 @@ class AgentState(TypedDict):
     client: Any
 
 
+# ── Instrumentation ───────────────────────────────────────────────────────
+
+def timed_node(fn: Callable) -> Callable:
+    """Log wall-clock time for a graph node.
+
+    A query fans out into 3-6 LLM calls across several nodes, and against a local model each
+    one costs seconds. A single end-to-end number cannot tell you whether the time went to
+    the router, the agent, or a critic-triggered retry — this can. Logs on the way out even
+    when the node raises, so a timeout still tells you where it happened.
+    """
+
+    @wraps(fn)
+    async def wrapper(state: AgentState) -> dict:
+        started = time.perf_counter()
+        try:
+            return await fn(state)
+        finally:
+            logger.info("[timing] %-16s %6.2fs", fn.__name__, time.perf_counter() - started)
+
+    return wrapper
+
+
 # ── Nodes ─────────────────────────────────────────────────────────────────
 
+@timed_node
 async def route_node(state: AgentState) -> dict:
     """Classify the query type from what the user actually asked."""
     query_type = await classify_query(state["client"], state["original_question"])
     return {"query_type": query_type}
 
 
+@timed_node
 async def retrieve_node(state: AgentState) -> dict:
     """Single-pass retrieval for factual/comparative queries."""
     chunks = await similarity_search(
@@ -75,12 +101,14 @@ async def retrieve_node(state: AgentState) -> dict:
     }
 
 
+@timed_node
 async def decompose_node(state: AgentState) -> dict:
     """Break the multi-hop question into focused sub-questions."""
     sub_qs = await decompose_question(state["client"], state["question"])
     return {"sub_questions": sub_qs}
 
 
+@timed_node
 async def multi_retrieve_node(state: AgentState) -> dict:
     """Iterative retrieval: run similarity_search for each sub-question, merge + dedupe."""
     sub_qs = state.get("sub_questions") or [state["question"]]
@@ -127,6 +155,7 @@ async def multi_retrieve_node(state: AgentState) -> dict:
     }
 
 
+@timed_node
 async def factual_node(state: AgentState) -> dict:
     answer = await run_factual_agent(
         state["client"], state["original_question"], state["source_chunks"]
@@ -134,6 +163,7 @@ async def factual_node(state: AgentState) -> dict:
     return {"answer": answer}
 
 
+@timed_node
 async def comparative_node(state: AgentState) -> dict:
     answer = await run_comparative_agent(
         state["client"], state["original_question"], state["source_chunks"]
@@ -141,6 +171,7 @@ async def comparative_node(state: AgentState) -> dict:
     return {"answer": answer}
 
 
+@timed_node
 async def multihop_node(state: AgentState) -> dict:
     answer = await run_multihop_agent(
         state["client"],
@@ -151,12 +182,14 @@ async def multihop_node(state: AgentState) -> dict:
     return {"answer": answer}
 
 
+@timed_node
 async def critic_node(state: AgentState) -> dict:
     """Score the answer against source chunks."""
     confidence = await score_answer(state["answer"], state["source_chunks"])
     return {"confidence": confidence}
 
 
+@timed_node
 async def refine_query_node(state: AgentState) -> dict:
     """Generate a refined search query for re-retrieval.
 
