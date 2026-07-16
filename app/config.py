@@ -41,6 +41,14 @@ class Settings(BaseSettings):
     critic_similarity_threshold: float = 0.78
     max_retrieval_attempts: int = 3
 
+    # Token budget for the source chunks handed to an agent. A safety rail, not an
+    # optimisation: sized to sit well clear of a 16k-context local model once the system
+    # prompt, question and generated answer are accounted for. The multi-hop path can
+    # retrieve 12+ chunks (per_sub x sub-questions), and top_k is caller-supplied, so
+    # without a cap the prompt size is effectively unbounded — and a model that silently
+    # truncates drops the source chunks and then invents an answer.
+    max_context_tokens: int = 8000
+
     host: str = "0.0.0.0"
     port: int = 8000
 
