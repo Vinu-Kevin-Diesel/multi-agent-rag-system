@@ -22,6 +22,15 @@ class Settings(BaseSettings):
     # fallback for both keys above, so existing .env files keep working unchanged.
     nvidia_api_key: str | None = None
 
+    # Per-request ceiling for an LLM call. The OpenAI SDK defaults to 600s, which lets one
+    # hung request tie up a worker for ten minutes. Measured worst case against a local 8B
+    # is ~45s for a 10k-token prompt, so this leaves generous headroom while still failing
+    # in a bounded time.
+    llm_timeout_seconds: float = 120.0
+    # Retries apply to connection errors, 429s and 5xx — not to a successful response. The
+    # free hosted tier rate-limits under load, where this earns its keep.
+    llm_max_retries: int = 2
+
     database_url: str = "postgresql+asyncpg://docagent:docagent@db:5432/docagent"
 
     embedding_model: str = "all-MiniLM-L6-v2"

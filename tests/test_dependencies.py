@@ -101,6 +101,16 @@ def test_client_is_cached(clean_env, clear_client_cache):
     assert dependencies.get_llm_client() is dependencies.get_llm_client()
 
 
+def test_clients_bound_by_timeout_and_retries(monkeypatch, clean_env, clear_client_cache):
+    """The SDK default is a 600s timeout — one hung call would hold a worker for 10 minutes."""
+    monkeypatch.setattr(dependencies.settings, "llm_timeout_seconds", 90.0)
+    monkeypatch.setattr(dependencies.settings, "llm_max_retries", 3)
+
+    for client in (dependencies.get_llm_client(), dependencies.get_judge_client()):
+        assert client.timeout == 90.0
+        assert client.max_retries == 3
+
+
 def test_missing_key_on_a_remote_endpoint_warns(monkeypatch, clean_env, clear_client_cache, caplog):
     """A keyless remote endpoint 401s at request time. Warn while the cause is still legible."""
     monkeypatch.setattr(dependencies.settings, "llm_base_url", "https://api.example.com/v1")

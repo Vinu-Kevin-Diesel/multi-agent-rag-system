@@ -38,8 +38,16 @@ def _build_client(base_url: str, api_key: str | None, label: str) -> AsyncOpenAI
             )
         api_key = _PLACEHOLDER_KEY
 
-    logger.info("[%s] using %s (model resolved by caller)", label, base_url)
-    return AsyncOpenAI(base_url=base_url, api_key=api_key)
+    logger.info(
+        "[%s] using %s (timeout=%.0fs, retries=%d)",
+        label, base_url, settings.llm_timeout_seconds, settings.llm_max_retries,
+    )
+    return AsyncOpenAI(
+        base_url=base_url,
+        api_key=api_key,
+        timeout=settings.llm_timeout_seconds,
+        max_retries=settings.llm_max_retries,
+    )
 
 
 @lru_cache(maxsize=1)
