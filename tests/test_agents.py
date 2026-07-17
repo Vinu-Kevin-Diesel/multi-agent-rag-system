@@ -1,53 +1,66 @@
 import pytest
 
-from app.agents.router_agent import classify_query
+from app.agents.router_agent import classify_query, _parse_category
 from app.agents.critic_agent import score_answer
+
+
+def test_parse_category_from_json_object():
+    """Providers that enforce the schema (NVIDIA NIM) return a JSON object."""
+    assert _parse_category('{"category": "multihop"}') == "multihop"
+    assert _parse_category('{"category":"comparative"}') == "comparative"
+
+
+def test_parse_category_from_bare_word():
+    """The local no-think qwen3-router variant returns the label directly."""
+    assert _parse_category("factual") == "factual"
+    assert _parse_category("  multihop\n") == "multihop"
+    assert _parse_category('"comparative"') == "comparative"
+
+
+def test_parse_category_rejects_unknown():
+    """A value outside the enum is not silently coerced — the caller decides the fallback."""
+    assert _parse_category("banana") is None
+    assert _parse_category("") is None
+    assert _parse_category('{"category": "sideways"}') is None
 
 
 @pytest.mark.asyncio
 async def test_classify_query_returns_valid_type(mock_llm):
-    """Router should return a valid query type."""
     result = await classify_query(mock_llm, "What is the revenue?")
     assert result in ("factual", "comparative", "multihop")
 
 
 @pytest.mark.asyncio
-async def test_classify_query_defaults_to_factual(make_llm_client):
-    """Unparseable model output should default to factual."""
-    client = make_llm_client(content="something_invalid")
-
-    result = await classify_query(client, "What?")
-    assert result == "factual"
-
-
-@pytest.mark.asyncio
-async def test_classify_query_reads_the_last_line(make_llm_client):
-    """A reasoning model rambles, then states its verdict last. Take the verdict.
-
-    The prompt asks for the category 'on the last line', and the body here deliberately
-    name-drops the other two categories so a naive whole-text scan would pick the wrong one.
-    """
-    client = make_llm_client(
-        content=(
-            "This is not merely factual, and it is not quite comparative either.\n"
-            "It requires chaining one fact into another.\n"
-            "multihop"
-        )
-    )
-
+async def test_classify_query_parses_schema_json(make_llm_client):
+    """End to end with a schema-enforcing provider's JSON object."""
+    client = make_llm_client(content='{"category": "multihop"}')
     assert await classify_query(client, "What treats X, and what code applies?") == "multihop"
 
 
 @pytest.mark.asyncio
-async def test_classify_query_falls_back_to_reasoning_content(make_llm_client):
-    """Thinking models can leave `content` empty and put the output in `reasoning_content`.
-
-    Kimi K2.5 does this today; Qwen3 will do it locally. If extract_content stops handling
-    it, every query silently classifies as factual and the router looks fine while being dead.
-    """
-    client = make_llm_client(content=None, reasoning_content="comparative")
-
+async def test_classify_query_parses_bare_word(make_llm_client):
+    """End to end with the local variant's bare-word output."""
+    client = make_llm_client(content="comparative")
     assert await classify_query(client, "Compare A and B") == "comparative"
+
+
+@pytest.mark.asyncio
+async def test_classify_query_defaults_to_factual_on_garbage(make_llm_client):
+    """Unparseable output must not raise or invent a category."""
+    client = make_llm_client(content="something_invalid")
+    assert await classify_query(client, "What?") == "factual"
+
+
+@pytest.mark.asyncio
+async def test_classify_query_defaults_to_factual_on_error(make_llm_client):
+    """A routing failure must degrade to a default, never 500 the whole query.
+
+    This is the failure the day-5 baseline hit: an empty/failed router response used to
+    fall through silently. Now it is explicit and contained.
+    """
+    client = make_llm_client(content="factual")
+    client.chat.completions.create.side_effect = RuntimeError("connection reset")
+    assert await classify_query(client, "anything") == "factual"
 
 
 @pytest.mark.asyncio

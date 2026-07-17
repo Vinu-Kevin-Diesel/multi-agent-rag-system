@@ -69,9 +69,13 @@ $body = @{ model = $model; prompt = "OK"; stream = $false; think = $false } | Co
 $null = Invoke-RestMethod "http://localhost:11434/api/generate" -Method Post -Body $body -TimeoutSec 180
 & ollama ps
 
+Write-Host "5. Building the thinking-disabled router variant..." -ForegroundColor Cyan
+& "$PSScriptRoot\build-router-model.ps1"
+
 Write-Host ""
 Write-Host "Done. Point the app at it in .env:" -ForegroundColor Green
 Write-Host "   LLM_MODEL=$model"
+Write-Host "   ROUTER_MODEL=qwen3-router"
 Write-Host "   LLM_BASE_URL=http://host.docker.internal:11434/v1"
 Write-Host "   LLM_API_KEY=ollama"
 Write-Host "Want PROCESSOR to read '100% GPU'. If it shows a CPU split, lower OLLAMA_CONTEXT_LENGTH."
