@@ -10,6 +10,16 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://integrate.api.nvidia.com/v1"
     llm_api_key: str | None = None
 
+    # Model for the router/decompose classification calls. Defaults to the main model, which
+    # is correct for a non-reasoning hosted model. For local qwen3, point this at the
+    # thinking-disabled variant (ROUTER_MODEL=qwen3-router, built by scripts/build-router-model.ps1):
+    # reasoning turns a one-word classification into a 17-70s, non-deterministic generation.
+    router_model: str = ""
+
+    @property
+    def effective_router_model(self) -> str:
+        return self.router_model or self.llm_model
+
     # ── The evaluation judge ───────────────────────────────────────────────
     # Used only by the RAGAS harness; never serves user traffic. Kept deliberately
     # separate from the model under test: once queries run on a local 8B, scoring its
