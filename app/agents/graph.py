@@ -80,7 +80,13 @@ def timed_node(fn: Callable) -> Callable:
 
 @timed_node
 async def route_node(state: AgentState) -> dict:
-    """Classify the query type from what the user actually asked."""
+    """Classify the query type from what the user actually asked.
+
+    router_mode=off is the ablation baseline: skip classification entirely and treat every
+    query as factual, so it goes to the single generic agent. (classifier — day 10.)
+    """
+    if settings.router_mode == "off":
+        return {"query_type": "factual"}
     query_type = await classify_query(state["client"], state["original_question"])
     return {"query_type": query_type}
 
@@ -103,7 +109,13 @@ async def retrieve_node(state: AgentState) -> dict:
 
 @timed_node
 async def decompose_node(state: AgentState) -> dict:
-    """Break the multi-hop question into focused sub-questions."""
+    """Break the multi-hop question into focused sub-questions.
+
+    decompose_enabled=false is the ablation without decomposition: return no sub-questions so
+    multi_retrieve falls back to a single pass over the original question.
+    """
+    if not settings.decompose_enabled:
+        return {"sub_questions": []}
     sub_qs = await decompose_question(state["client"], state["question"])
     return {"sub_questions": sub_qs}
 
@@ -184,7 +196,14 @@ async def multihop_node(state: AgentState) -> dict:
 
 @timed_node
 async def critic_node(state: AgentState) -> dict:
-    """Score the answer against source chunks."""
+    """Score how well the answer is grounded in the source chunks.
+
+    critic_mode=off is the ablation without self-correction: skip scoring and report 1.0 so
+    should_retry finishes after one pass. The sentinel marks "not critiqued" in the response.
+    (nli / llm scoring — day 19.)
+    """
+    if settings.critic_mode == "off":
+        return {"confidence": 1.0}
     confidence = await score_answer(state["answer"], state["source_chunks"])
     return {"confidence": confidence}
 
@@ -230,6 +249,8 @@ def refine_to_path(state: AgentState) -> str:
 
 def should_retry(state: AgentState) -> str:
     """Decide whether to re-retrieve or finish."""
+    if settings.critic_mode == "off":
+        return "done"
     if (
         state["confidence"] < settings.critic_similarity_threshold
         and state["retrieval_attempts"] < settings.max_retrieval_attempts
