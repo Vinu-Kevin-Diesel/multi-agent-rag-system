@@ -37,6 +37,12 @@ $modelfile = $modelfile -join "`n"
 $modelfile = $modelfile -replace '\$\.IsThinkSet', 'true'
 $modelfile = $modelfile -replace '\$\.Think\b', 'false'
 
+# The router sees only a one-line question and emits one label, so it needs almost no context.
+# The base model defaults to a 40k window, which balloons the KV cache to ~17 GB and spills the
+# variant onto the CPU — and, as a second resident 8B, it competes with the main model for VRAM.
+# A small window keeps it lightweight so both models can stay on the GPU.
+$modelfile += "`nPARAMETER num_ctx 4096"
+
 $tmp = Join-Path $env:TEMP "qwen3-router.modelfile"
 Set-Content -Path $tmp -Value $modelfile -NoNewline
 

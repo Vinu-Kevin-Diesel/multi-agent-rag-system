@@ -10,10 +10,13 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://integrate.api.nvidia.com/v1"
     llm_api_key: str | None = None
 
-    # Model for the router/decompose classification calls. Defaults to the main model, which
-    # is correct for a non-reasoning hosted model. For local qwen3, point this at the
-    # thinking-disabled variant (ROUTER_MODEL=qwen3-router, built by scripts/build-router-model.ps1):
-    # reasoning turns a one-word classification into a 17-70s, non-deterministic generation.
+    # Model for the structured router + decompose calls. Both emit a small structured result
+    # (a label; a short list of search queries) guided by few-shot examples, and neither
+    # benefits from reasoning. Defaults to the main model, which is correct for a non-reasoning
+    # hosted model. For local qwen3, point this at the thinking-disabled variant
+    # (ROUTER_MODEL=qwen3-router, built by scripts/build-router-model.ps1): reasoning turns
+    # these into 17-100s generations, and decompose reusing this model means route -> decompose
+    # share one resident model instead of swapping.
     router_model: str = ""
 
     @property
