@@ -97,3 +97,32 @@ on day 10 does.
 
 **Decompose is still slow (~11s)** because it remains on the thinking model — day 7 gives it the
 same treatment as the router.
+
+---
+
+# After: constrained decompose (day 7)
+
+Decompose now runs on the same no-think `qwen3-router` model, with a schema-constrained response
+parsed by `json.loads` (the code-fence + `[.*?]` regex is gone). The few-shot examples in the
+prompt do the quality work — a bare probe with no examples produced markdown and a misread of the
+question; with the examples the no-think model returns clean, correct sub-questions.
+
+| node | day-6 | day-7 | |
+|---|---:|---:|---|
+| decompose | 10.97s | **0.37s** | ~30×, quality preserved |
+
+Multi-hop end-to-end (warm), `Which drug requires a test dose ... and how long does authorization last?`:
+
+| | day-5 | day-6 | day-7 |
+|---|---:|---:|---:|
+| total | 26.87s* | 19.39s | **9.20s** |
+
+\* day-5 couldn't route this question at all.
+
+Sub-questions produced: `["drug requiring test dose before authorization", "duration of
+authorization for test dose drug"]` — both hops captured, routed `multihop`, confidence 0.887.
+
+**A VRAM bonus falls out of this.** Route and decompose now share one resident model, so the
+route → decompose step no longer swaps; only the hand-off to the thinking agent for the final
+answer does. The reasoning models measured earlier (100s+ for a thinking decompose) confirm this
+was the right call — decomposition is structured extraction guided by examples, not reasoning.
