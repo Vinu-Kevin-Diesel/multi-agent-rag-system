@@ -71,6 +71,22 @@ class Settings(BaseSettings):
     # truncates drops the source chunks and then invents an answer.
     max_context_tokens: int = 8000
 
+    # ── Ablation flags ─────────────────────────────────────────────────────
+    # Toggle pipeline components independently so the eval harness can measure what each one
+    # actually contributes (day-17 ablation). Every flag defaults to the full system.
+    #
+    #   router_mode:       llm  — classify with the LLM router (default)
+    #                      off  — skip routing; send everything to the factual agent
+    #                      (classifier — trained model — lands on day 10)
+    #   decompose_enabled: true — multi-hop questions are split into sub-questions (default)
+    #                      false— multi-hop takes a single retrieval pass, no decomposition
+    #   critic_mode:       cosine — score grounding by cosine similarity, retry if low (default)
+    #                      off    — accept the first answer; no scoring, no retry loop
+    #                      (nli / llm scoring land on day 19)
+    router_mode: str = "llm"
+    decompose_enabled: bool = True
+    critic_mode: str = "cosine"
+
     host: str = "0.0.0.0"
     port: int = 8000
 
