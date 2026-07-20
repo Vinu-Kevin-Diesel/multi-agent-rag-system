@@ -29,6 +29,7 @@ from app.agents.decompose import decompose_question
 from app.agents.factual_agent import run_factual_agent
 from app.agents.multihop_agent import run_multihop_agent
 from app.agents.router_agent import classify_query
+from app.agents.router_classifier import classify_by_embedding
 from app.agents.utils import fit_chunks_to_budget
 from app.config import settings
 from app.retrieval.vector_store import similarity_search
@@ -82,13 +83,16 @@ def timed_node(fn: Callable) -> Callable:
 async def route_node(state: AgentState) -> dict:
     """Classify the query type from what the user actually asked.
 
-    router_mode=off is the ablation baseline: skip classification entirely and treat every
-    query as factual, so it goes to the single generic agent. (classifier — day 10.)
+    Three modes:
+      off        — skip classification; treat every query as factual (ablation baseline).
+      classifier — trained MiniLM+logreg model (~1ms, no LLM call, no second resident model).
+      llm        — the schema-constrained LLM router.
     """
     if settings.router_mode == "off":
         return {"query_type": "factual"}
-    query_type = await classify_query(state["client"], state["original_question"])
-    return {"query_type": query_type}
+    if settings.router_mode == "classifier":
+        return {"query_type": await classify_by_embedding(state["original_question"])}
+    return {"query_type": await classify_query(state["client"], state["original_question"])}
 
 
 @timed_node

@@ -126,3 +126,26 @@ authorization for test dose drug"]` — both hops captured, routed `multihop`, c
 route → decompose step no longer swaps; only the hand-off to the thinking agent for the final
 answer does. The reasoning models measured earlier (100s+ for a thinking decompose) confirm this
 was the right call — decomposition is structured extraction guided by examples, not reasoning.
+
+---
+
+# After: classifier router (day 10)
+
+`ROUTER_MODE=classifier` replaces the LLM router with a logistic regression over the MiniLM
+embedding the app already computes (`app/agents/router_model.npz`, 5.5 KB). Inference is a
+`(384,) @ (3,384)` matmul + argmax.
+
+| router | latency (warm) | mechanism |
+|---|---:|---|
+| day-5 LLM | 17.21s | reasoning model, 512-token budget |
+| day-6 LLM (no-think variant) | 0.35s | second 8B resident in VRAM |
+| **day-10 classifier** | **0.02s** | numpy matmul over an already-computed embedding |
+
+Held-out accuracy 0.961 (F1: factual 0.970, comparative 0.970, multihop 0.944). Verified live:
+`Compare coverage for Drug A and Drug B.` → `comparative` in `route_node 0.02s`, no LLM call.
+
+**For factual/comparative queries the second model is now gone** — routing is CPU-side MiniLM
+(already loaded for embeddings) plus numpy, so only the answer model is resident. Multi-hop still
+loads `qwen3-router` for *decompose*; replacing that generative step is out of scope here. Caveat:
+0.961 is on a **synthetic** question set (see `data/README.md`) — an optimistic proxy for real
+queries; the true test is the RAGAS routing accuracy on the golden set.
