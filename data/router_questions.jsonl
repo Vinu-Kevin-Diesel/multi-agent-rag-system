@@ -1,0 +1,255 @@
+{"question": "Which has a higher prior authorization requirement, Plan A or the Gold plan?", "label": "comparative"}
+{"question": "What is the formulary tier for Ozempic, and what copay does that tier carry?", "label": "multihop"}
+{"question": "What year did Alan Turing publish Inception?", "label": "factual"}
+{"question": "How many days does authorization for Xarelto last?", "label": "factual"}
+{"question": "Identify the drug that treats hypertension, then give its manufacturer.", "label": "multihop"}
+{"question": "If a patient has never taken Keytruda, what steps must they complete, and how long does authorization then last?", "label": "multihop"}
+{"question": "What is the dosage of Drug B?", "label": "factual"}
+{"question": "Is Drug B or atorvastatin cheaper?", "label": "comparative"}
+{"question": "Who manufactures buprenorphine, and what other drugs does that company make?", "label": "multihop"}
+{"question": "After finding which plan covers an emergency room visit, tell me its coinsurance.", "label": "multihop"}
+{"question": "Who directed Inception?", "label": "factual"}
+{"question": "Is atorvastatin or Drug B cheaper?", "label": "comparative"}
+{"question": "When does prior authorization for Drug B expire?", "label": "factual"}
+{"question": "How many days does authorization for atorvastatin last?", "label": "factual"}
+{"question": "Where is Marie Curie based?", "label": "factual"}
+{"question": "What plan covers outpatient surgery, and what is that plan's deductible?", "label": "multihop"}
+{"question": "What is the difference between the high-deductible plan and Plan A?", "label": "comparative"}
+{"question": "What is the dosage of metformin?", "label": "factual"}
+{"question": "How does metformin differ from Xarelto in cost?", "label": "comparative"}
+{"question": "Is Keytruda covered under the PPO plan?", "label": "factual"}
+{"question": "After finding which plan covers annnual physical, tell me its coverage limit.", "label": "multihop"}
+{"question": "Who manufactures Ozempic, and what other drugs does that company make?", "label": "multihop"}
+{"question": "Which section covers prior authorization, and what does it require for Drug B?", "label": "multihop"}
+{"question": "When does prior authorization for Wegovy expire?", "label": "factual"}
+{"question": "After finding which plan covers annnual physical, tell me its deductible.", "label": "multihop"}
+{"question": "Compare coverage for Wegovy and Adderall.", "label": "comparative"}
+{"question": "Who manufactures atorvastatin, and what other drugs does that company make?", "label": "multihop"}
+{"question": "Is Drug B covered under the PPO plan?", "label": "factual"}
+{"question": "What is the difference between the PPO plan and the family plan?", "label": "comparative"}
+{"question": "Compare coverage for metformin and Drug A.", "label": "comparative"}
+{"question": "Where is Christopher Nolan based?", "label": "factual"}
+{"question": "What plan covers outpatient surgery, and what is that plan's monthly premium?", "label": "multihop"}
+{"question": "What is the coverage limit for the family plan?", "label": "factual"}
+{"question": "Which is more restrictive about step therapy, the high-deductible plan or the family plan?", "label": "comparative"}
+{"question": "What does the Gold plan say about step therapy?", "label": "factual"}
+{"question": "What condition does Wegovy treat, and what is the copay for that condition's specialist?", "label": "multihop"}
+{"question": "Does the family plan or the PPO plan have better coverage for physical therapy?", "label": "comparative"}
+{"question": "Is Drug A covered under the Gold plan?", "label": "factual"}
+{"question": "What year did Marie Curie publish Inception?", "label": "factual"}
+{"question": "Which has a higher deductible, the high-deductible plan or the family plan?", "label": "comparative"}
+{"question": "What does Plan B say about the appeals process?", "label": "factual"}
+{"question": "What plan covers a telehealth consult, and what is that plan's deductible?", "label": "multihop"}
+{"question": "When does prior authorization for atorvastatin expire?", "label": "factual"}
+{"question": "Who manufactures Drug A, and what other drugs does that company make?", "label": "multihop"}
+{"question": "What does the PPO plan say about the formulary tier?", "label": "factual"}
+{"question": "Which section covers prior authorization, and what does it require for Wegovy?", "label": "multihop"}
+{"question": "After finding which plan covers an MRI, tell me its deductible.", "label": "multihop"}
+{"question": "Which has a higher coverage limit, the Gold plan or Plan B?", "label": "comparative"}
+{"question": "What is the formulary tier for Wegovy, and what copay does that tier carry?", "label": "multihop"}
+{"question": "After finding which plan covers physical therapy, tell me its copay.", "label": "multihop"}
+{"question": "What is the copay for a specialist visit?", "label": "factual"}
+{"question": "Does the Silver plan or the high-deductible plan have better coverage for a specialist visit?", "label": "comparative"}
+{"question": "What is the difference between Plan A and the Silver plan?", "label": "comparative"}
+{"question": "What is the difference between Plan B and the family plan?", "label": "comparative"}
+{"question": "Who manufactures Humira?", "label": "factual"}
+{"question": "Which has a higher prior authorization requirement, the HMO plan or the Silver plan?", "label": "comparative"}
+{"question": "Between the PPO plan and the HMO plan, which covers physical therapy?", "label": "comparative"}
+{"question": "Identify the drug that treats opioid use disorder, then give its manufacturer.", "label": "multihop"}
+{"question": "What year did Ada Lovelace publish the theory of relativity?", "label": "factual"}
+{"question": "Is Drug B covered under Plan A?", "label": "factual"}
+{"question": "What is the copay for an emergency room visit?", "label": "factual"}
+{"question": "If a patient has never taken Drug A, what steps must they complete, and how long does authorization then last?", "label": "multihop"}
+{"question": "Contrast the authorization requirements for Xarelto versus Wegovy.", "label": "comparative"}
+{"question": "Does the Gold plan or the family plan have better coverage for a specialist visit?", "label": "comparative"}
+{"question": "Compare coverage for buprenorphine and Ozempic.", "label": "comparative"}
+{"question": "After finding which plan covers an emergency room visit, tell me its deductible.", "label": "multihop"}
+{"question": "How does Keytruda differ from metformin in cost?", "label": "comparative"}
+{"question": "Compare coverage for atorvastatin and Ozempic.", "label": "comparative"}
+{"question": "Is Drug A covered under Plan A?", "label": "factual"}
+{"question": "Which has a higher deductible, the high-deductible plan or the high-deductible plan?", "label": "comparative"}
+{"question": "How many days does authorization for Keytruda last?", "label": "factual"}
+{"question": "Who manufactures atorvastatin?", "label": "factual"}
+{"question": "Identify the drug that treats high cholesterol, then give its manufacturer.", "label": "multihop"}
+{"question": "Is Ozempic covered under the family plan?", "label": "factual"}
+{"question": "What ICD-10 code is used for opioid use disorder?", "label": "factual"}
+{"question": "What is the monthly premium for the HMO plan?", "label": "factual"}
+{"question": "What plan covers an emergency room visit, and what is that plan's deductible?", "label": "multihop"}
+{"question": "Is metformin covered under the family plan?", "label": "factual"}
+{"question": "What condition does buprenorphine treat, and what is the copay for that condition's specialist?", "label": "multihop"}
+{"question": "How many days does authorization for buprenorphine last?", "label": "factual"}
+{"question": "Does the high-deductible plan or the high-deductible plan have better coverage for an MRI?", "label": "comparative"}
+{"question": "What is the copay for Plan B?", "label": "factual"}
+{"question": "What is the monthly premium for the Silver plan?", "label": "factual"}
+{"question": "Does the family plan or the HMO plan have better coverage for outpatient surgery?", "label": "comparative"}
+{"question": "Identify the drug that treats atrial fibrillation, then give its manufacturer.", "label": "multihop"}
+{"question": "After finding which plan covers a specialist visit, tell me its out-of-pocket maximum.", "label": "multihop"}
+{"question": "Who manufactures Drug B, and what other drugs does that company make?", "label": "multihop"}
+{"question": "When does prior authorization for buprenorphine expire?", "label": "factual"}
+{"question": "What is the copay for outpatient surgery?", "label": "factual"}
+{"question": "Contrast the authorization requirements for Ozempic versus atorvastatin.", "label": "comparative"}
+{"question": "What is the formulary tier for insulin glargine, and what copay does that tier carry?", "label": "multihop"}
+{"question": "What plan covers annnual physical, and what is that plan's deductible?", "label": "multihop"}
+{"question": "What plan covers physical therapy, and what is that plan's prior authorization requirement?", "label": "multihop"}
+{"question": "What is the difference between Plan A and the family plan?", "label": "comparative"}
+{"question": "Who manufactures buprenorphine?", "label": "factual"}
+{"question": "Who manufactures Humira, and what other drugs does that company make?", "label": "multihop"}
+{"question": "After finding which plan covers an MRI, tell me its prior authorization requirement.", "label": "multihop"}
+{"question": "What ICD-10 code is used for hypertension?", "label": "factual"}
+{"question": "Which is more restrictive about prior authorization, Plan A or the high-deductible plan?", "label": "comparative"}
+{"question": "Does the PPO plan or the family plan have better coverage for annnual physical?", "label": "comparative"}
+{"question": "Which section covers specialty pharmacy requirements, and what does it require for atorvastatin?", "label": "multihop"}
+{"question": "Contrast the authorization requirements for Wegovy versus Drug A.", "label": "comparative"}
+{"question": "Which section covers prior authorization, and what does it require for metformin?", "label": "multihop"}
+{"question": "Which drug requires a test dose, and what ICD-10 code applies to its indication?", "label": "multihop"}
+{"question": "What is the coverage limit for the Silver plan?", "label": "factual"}
+{"question": "Who manufactures Drug A?", "label": "factual"}
+{"question": "What is the dosage of buprenorphine?", "label": "factual"}
+{"question": "Is Adderall covered under the family plan?", "label": "factual"}
+{"question": "Contrast the authorization requirements for insulin glargine versus Drug B.", "label": "comparative"}
+{"question": "If a patient has never taken metformin, what steps must they complete, and how long does authorization then last?", "label": "multihop"}
+{"question": "After finding which plan covers an emergency room visit, tell me its out-of-pocket maximum.", "label": "multihop"}
+{"question": "Who manufactures Adderall?", "label": "factual"}
+{"question": "What does the PPO plan say about the appeals process?", "label": "factual"}
+{"question": "Is insulin glargine or Ozempic cheaper?", "label": "comparative"}
+{"question": "Is Adderall or Humira cheaper?", "label": "comparative"}
+{"question": "What is the formulary tier for Keytruda, and what copay does that tier carry?", "label": "multihop"}
+{"question": "Does the HMO plan or the high-deductible plan have better coverage for outpatient surgery?", "label": "comparative"}
+{"question": "Identify the drug that treats rheumatoid arthritis, then give its manufacturer.", "label": "multihop"}
+{"question": "What is the deductible for the HMO plan?", "label": "factual"}
+{"question": "Which section covers step therapy, and what does it require for Drug A?", "label": "multihop"}
+{"question": "Between the Silver plan and the high-deductible plan, which covers an MRI?", "label": "comparative"}
+{"question": "Which section covers prior authorization, and what does it require for buprenorphine?", "label": "multihop"}
+{"question": "What is the dosage of Xarelto?", "label": "factual"}
+{"question": "Between Plan B and the PPO plan, which covers physical therapy?", "label": "comparative"}
+{"question": "What condition does Drug A treat, and what is the copay for that condition's specialist?", "label": "multihop"}
+{"question": "Which is more restrictive about step therapy, the Silver plan or the HMO plan?", "label": "comparative"}
+{"question": "When does prior authorization for Drug A expire?", "label": "factual"}
+{"question": "Who manufactures Wegovy, and what other drugs does that company make?", "label": "multihop"}
+{"question": "Identify the drug that treats obesity, then give its manufacturer.", "label": "multihop"}
+{"question": "Which has a higher coinsurance, the HMO plan or the Gold plan?", "label": "comparative"}
+{"question": "What is the formulary tier for atorvastatin, and what copay does that tier carry?", "label": "multihop"}
+{"question": "Compare coverage for Adderall and metformin.", "label": "comparative"}
+{"question": "Is Xarelto covered under the Silver plan?", "label": "factual"}
+{"question": "Is Drug B covered under the high-deductible plan?", "label": "factual"}
+{"question": "When does prior authorization for Adderall expire?", "label": "factual"}
+{"question": "Between the family plan and Plan A, which covers a specialist visit?", "label": "comparative"}
+{"question": "Contrast the authorization requirements for Adderall versus Keytruda.", "label": "comparative"}
+{"question": "How does Xarelto differ from buprenorphine in cost?", "label": "comparative"}
+{"question": "Who manufactures metformin?", "label": "factual"}
+{"question": "Which section covers step therapy, and what does it require for metformin?", "label": "multihop"}
+{"question": "What condition does Ozempic treat, and what is the copay for that condition's specialist?", "label": "multihop"}
+{"question": "What is the prior authorization requirement for the Gold plan?", "label": "factual"}
+{"question": "Is metformin or Drug B cheaper?", "label": "comparative"}
+{"question": "Contrast the authorization requirements for Drug A versus Ozempic.", "label": "comparative"}
+{"question": "What is the deductible for the PPO plan?", "label": "factual"}
+{"question": "If a patient has never taken insulin glargine, what steps must they complete, and how long does authorization then last?", "label": "multihop"}
+{"question": "If a patient has never taken Ozempic, what steps must they complete, and how long does authorization then last?", "label": "multihop"}
+{"question": "What plan covers an emergency room visit, and what is that plan's out-of-pocket maximum?", "label": "multihop"}
+{"question": "Who manufactures Keytruda, and what other drugs does that company make?", "label": "multihop"}
+{"question": "Is Ozempic or buprenorphine cheaper?", "label": "comparative"}
+{"question": "What is the difference between the family plan and the high-deductible plan?", "label": "comparative"}
+{"question": "When does prior authorization for Ozempic expire?", "label": "factual"}
+{"question": "Where is Ada Lovelace based?", "label": "factual"}
+{"question": "After finding which plan covers a specialist visit, tell me its coinsurance.", "label": "multihop"}
+{"question": "What does the Silver plan say about step therapy?", "label": "factual"}
+{"question": "Contrast the authorization requirements for Drug A versus Adderall.", "label": "comparative"}
+{"question": "What is the prior authorization requirement for the family plan?", "label": "factual"}
+{"question": "What is the difference between Plan B and Plan A?", "label": "comparative"}
+{"question": "Is Adderall or Adderall cheaper?", "label": "comparative"}
+{"question": "If a patient has never taken Adderall, what steps must they complete, and how long does authorization then last?", "label": "multihop"}
+{"question": "Which has a higher coverage limit, Plan B or the Gold plan?", "label": "comparative"}
+{"question": "Who directed the theory of relativity?", "label": "factual"}
+{"question": "Does the Gold plan or the PPO plan have better coverage for annnual physical?", "label": "comparative"}
+{"question": "Which section covers specialty pharmacy requirements, and what does it require for Humira?", "label": "multihop"}
+{"question": "What is the formulary tier for Drug B, and what copay does that tier carry?", "label": "multihop"}
+{"question": "Which is more restrictive about step therapy, the Gold plan or Plan A?", "label": "comparative"}
+{"question": "What is the monthly premium for the family plan?", "label": "factual"}
+{"question": "What plan covers an emergency room visit, and what is that plan's coinsurance?", "label": "multihop"}
+{"question": "What plan covers an MRI, and what is that plan's coverage limit?", "label": "multihop"}
+{"question": "Which has a higher coinsurance, the high-deductible plan or the PPO plan?", "label": "comparative"}
+{"question": "What condition does Xarelto treat, and what is the copay for that condition's specialist?", "label": "multihop"}
+{"question": "Who manufactures Ozempic?", "label": "factual"}
+{"question": "What does the high-deductible plan say about step therapy?", "label": "factual"}
+{"question": "What is the difference between the Silver plan and the HMO plan?", "label": "comparative"}
+{"question": "Which is more restrictive about the formulary tier, the PPO plan or the PPO plan?", "label": "comparative"}
+{"question": "Which section covers prior authorization, and what does it require for Xarelto?", "label": "multihop"}
+{"question": "What plan covers a specialist visit, and what is that plan's out-of-pocket maximum?", "label": "multihop"}
+{"question": "What is the copay for annnual physical?", "label": "factual"}
+{"question": "What condition does metformin treat, and what is the copay for that condition's specialist?", "label": "multihop"}
+{"question": "Does Plan A or the family plan have better coverage for annnual physical?", "label": "comparative"}
+{"question": "Which has a higher coverage limit, the Gold plan or the family plan?", "label": "comparative"}
+{"question": "What year did Christopher Nolan publish Inception?", "label": "factual"}
+{"question": "What is the difference between the HMO plan and the Gold plan?", "label": "comparative"}
+{"question": "What does Plan B say about network coverage?", "label": "factual"}
+{"question": "After finding which plan covers outpatient surgery, tell me its coverage limit.", "label": "multihop"}
+{"question": "What condition does Keytruda treat, and what is the copay for that condition's specialist?", "label": "multihop"}
+{"question": "Which section covers prior authorization, and what does it require for insulin glargine?", "label": "multihop"}
+{"question": "What condition does insulin glargine treat, and what is the copay for that condition's specialist?", "label": "multihop"}
+{"question": "What condition does Humira treat, and what is the copay for that condition's specialist?", "label": "multihop"}
+{"question": "After finding which plan covers a specialist visit, tell me its deductible.", "label": "multihop"}
+{"question": "What condition does Drug B treat, and what is the copay for that condition's specialist?", "label": "multihop"}
+{"question": "Is Adderall covered under the high-deductible plan?", "label": "factual"}
+{"question": "Is buprenorphine or Adderall cheaper?", "label": "comparative"}
+{"question": "After finding which plan covers a telehealth consult, tell me its deductible.", "label": "multihop"}
+{"question": "Contrast the authorization requirements for buprenorphine versus Humira.", "label": "comparative"}
+{"question": "Which section covers step therapy, and what does it require for insulin glargine?", "label": "multihop"}
+{"question": "Who manufactures insulin glargine, and what other drugs does that company make?", "label": "multihop"}
+{"question": "Is Wegovy covered under Plan B?", "label": "factual"}
+{"question": "Between the family plan and Plan A, which covers an emergency room visit?", "label": "comparative"}
+{"question": "What year did Ada Lovelace publish Inception?", "label": "factual"}
+{"question": "If a patient has never taken buprenorphine, what steps must they complete, and how long does authorization then last?", "label": "multihop"}
+{"question": "Which is more restrictive about step therapy, the PPO plan or Plan B?", "label": "comparative"}
+{"question": "Contrast the authorization requirements for Drug A versus Humira.", "label": "comparative"}
+{"question": "Which is more restrictive about specialty pharmacy requirements, Plan A or the Silver plan?", "label": "comparative"}
+{"question": "Who manufactures Xarelto, and what other drugs does that company make?", "label": "multihop"}
+{"question": "How many days does authorization for Drug A last?", "label": "factual"}
+{"question": "What year did Ada Lovelace publish the first computer program?", "label": "factual"}
+{"question": "Which has a higher prior authorization requirement, the high-deductible plan or the family plan?", "label": "comparative"}
+{"question": "If a patient has never taken Xarelto, what steps must they complete, and how long does authorization then last?", "label": "multihop"}
+{"question": "How does insulin glargine differ from atorvastatin in cost?", "label": "comparative"}
+{"question": "Who manufactures Drug B?", "label": "factual"}
+{"question": "Between the Silver plan and the high-deductible plan, which covers an emergency room visit?", "label": "comparative"}
+{"question": "Contrast the authorization requirements for Ozempic versus Ozempic.", "label": "comparative"}
+{"question": "If a patient has never taken atorvastatin, what steps must they complete, and how long does authorization then last?", "label": "multihop"}
+{"question": "What is the formulary tier for Drug A, and what copay does that tier carry?", "label": "multihop"}
+{"question": "Which is more restrictive about network coverage, the high-deductible plan or Plan B?", "label": "comparative"}
+{"question": "Does the HMO plan or the Silver plan have better coverage for annnual physical?", "label": "comparative"}
+{"question": "How does Adderall differ from Ozempic in cost?", "label": "comparative"}
+{"question": "What is the formulary tier for Adderall, and what copay does that tier carry?", "label": "multihop"}
+{"question": "What plan covers a specialist visit, and what is that plan's monthly premium?", "label": "multihop"}
+{"question": "What condition does atorvastatin treat, and what is the copay for that condition's specialist?", "label": "multihop"}
+{"question": "Which is more restrictive about prior authorization, Plan B or the PPO plan?", "label": "comparative"}
+{"question": "What year did Christopher Nolan publish the theory of relativity?", "label": "factual"}
+{"question": "When does prior authorization for Xarelto expire?", "label": "factual"}
+{"question": "How many days does authorization for Drug B last?", "label": "factual"}
+{"question": "Is insulin glargine covered under the PPO plan?", "label": "factual"}
+{"question": "Who directed the first computer program?", "label": "factual"}
+{"question": "What ICD-10 code is used for rheumatoid arthritis?", "label": "factual"}
+{"question": "What is the formulary tier for metformin, and what copay does that tier carry?", "label": "multihop"}
+{"question": "Contrast the authorization requirements for Adderall versus Drug A.", "label": "comparative"}
+{"question": "How many days does authorization for metformin last?", "label": "factual"}
+{"question": "What does the family plan say about the appeals process?", "label": "factual"}
+{"question": "What ICD-10 code is used for obesity?", "label": "factual"}
+{"question": "Is Ozempic covered under Plan A?", "label": "factual"}
+{"question": "Contrast the authorization requirements for Keytruda versus insulin glargine.", "label": "comparative"}
+{"question": "Contrast the authorization requirements for Wegovy versus Adderall.", "label": "comparative"}
+{"question": "What is the copay for physical therapy?", "label": "factual"}
+{"question": "What is the formulary tier for Xarelto, and what copay does that tier carry?", "label": "multihop"}
+{"question": "Identify the drug that treats type 2 diabetes, then give its manufacturer.", "label": "multihop"}
+{"question": "What is the copay for an MRI?", "label": "factual"}
+{"question": "Contrast the authorization requirements for buprenorphine versus atorvastatin.", "label": "comparative"}
+{"question": "Compare coverage for Adderall and Wegovy.", "label": "comparative"}
+{"question": "Which section covers specialty pharmacy requirements, and what does it require for Drug A?", "label": "multihop"}
+{"question": "When does prior authorization for Keytruda expire?", "label": "factual"}
+{"question": "When does prior authorization for insulin glargine expire?", "label": "factual"}
+{"question": "What is the formulary tier for Humira, and what copay does that tier carry?", "label": "multihop"}
+{"question": "Contrast the authorization requirements for Wegovy versus atorvastatin.", "label": "comparative"}
+{"question": "Which has a higher coinsurance, the Silver plan or the Gold plan?", "label": "comparative"}
+{"question": "Between Plan A and Plan A, which covers a telehealth consult?", "label": "comparative"}
+{"question": "Which is more restrictive about the appeals process, Plan A or the family plan?", "label": "comparative"}
+{"question": "Which is more restrictive about the appeals process, the PPO plan or the PPO plan?", "label": "comparative"}
+{"question": "Contrast the authorization requirements for Ozempic versus Xarelto.", "label": "comparative"}
+{"question": "How does Xarelto differ from atorvastatin in cost?", "label": "comparative"}
+{"question": "How does Drug A differ from insulin glargine in cost?", "label": "comparative"}
+{"question": "When does prior authorization for metformin expire?", "label": "factual"}
