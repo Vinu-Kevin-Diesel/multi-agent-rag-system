@@ -101,6 +101,62 @@ Environment that matters (the script sets these):
 | `OLLAMA_CONTEXT_LENGTH` | `16384` | fits the ~8–10k-token multi-hop prompts; small enough that weights + KV cache stay 100% on a 12 GB GPU |
 | `OLLAMA_KEEP_ALIVE` | `-1` | keep the model resident across the 3–6 LLM calls per query |
 
+### Setting up on a new machine
+
+Copying the project folder is **not** sufficient. Four things live outside it:
+
+1. **The Docker image** — built from the `Dockerfile`, never copied. `docker compose up --build -d db app`
+   takes 5–10 minutes the first time (torch + `unstructured[all-docs]`) and needs internet.
+2. **The database** — Postgres lives in the `pgdata` named volume, so it starts empty. Re-ingest:
+   `docker compose run --rm app python eval/ingest_corpus.py`
+3. **Ollama models** — `ollama pull qwen3:8b` for the base, then **build the router variant**:
+   `qwen3-router` does not exist on ollama.com; `scripts/build-router-model.ps1` derives it from
+   the installed base. Run the pull first.
+4. **Host environment** — `scripts/setup-ollama.ps1` sets `OLLAMA_HOST` etc. and restarts Ollama.
+
+`.env` is gitignored, so a `git clone` will not have one — copy `.env.example`. Note
+`NVIDIA_API_KEY` is still required even when the LLM is local, because the judge runs on a
+hosted model.
+
+Also note the embedding model (`all-MiniLM-L6-v2`) is **not** baked into the image; it downloads
+on first use, so the first run needs internet.
+
+**The failure that wastes an hour:** without `OLLAMA_HOST=0.0.0.0`, Ollama binds `127.0.0.1`,
+which a container cannot reach. Every query fails with a connection error while Ollama looks
+perfectly healthy from a browser on the host.
+
+### Hardware sizing (VRAM)
+
+The defaults are tuned for a **12 GB** card. Measured footprints for `qwen3:8b` (Q4_K_M) via
+`ollama ps`: weights ≈5.2 GB, KV cache ≈2.3 GB at 16384 ctx and ≈0.4 GB at 4096 ctx.
+
+Always sanity-check with `ollama ps` after setup: **`PROCESSOR` must read `100% GPU`**. A
+CPU/GPU split means the model spilled and everything will be several times slower.
+
+| VRAM | `OLLAMA_CONTEXT_LENGTH` | `MAX_CONTEXT_TOKENS` | notes |
+|---|---|---|---|
+| 12 GB | `16384` | `8000` (default) | qwen3:8b ≈7.5 GB, fits fully |
+| **8 GB** | **`8192`** | **`4000`** | qwen3:8b ≈6.3 GB; 16384 (7.5 GB) will spill once the desktop takes its share |
+| 6 GB or less | use `qwen3:4b` | `4000` | an 8B won't fit with usable context; drop model size, not just context |
+
+**Lower `MAX_CONTEXT_TOKENS` alongside the context window — they are coupled.** The app's budget
+guard caps the chunks put into a prompt; if it stays at 8000 while Ollama's window drops to 8192,
+a multi-hop prompt can exceed the window and Ollama will **silently truncate the front**, dropping
+the source chunks and leaving the model to invent an answer. Keep the budget comfortably under the
+window (roughly half) to leave room for the system prompt, question and generated answer.
+
+**On 8 GB, avoid two resident models.** Two 8B models cannot co-reside even on 12 GB (see below),
+and on 8 GB the swapping is punishing. Prefer:
+
+```bash
+ROUTER_MODE=classifier   # trained classifier: no LLM router at all, no second model for routing
+ROUTER_MODEL=qwen3:8b    # decompose falls back to the main model — slower (~11s vs ~0.4s) but
+                         # keeps a single model resident instead of swapping on every multi-hop query
+```
+
+That trades multi-hop decompose latency for the elimination of model swaps. On 12 GB, keep
+`ROUTER_MODEL=qwen3-router` — the swap is cheaper than the reasoning penalty there.
+
 ### Non-obvious findings (don't re-derive these the hard way)
 
 - **`think: false` does not work through Ollama's OpenAI `/v1` endpoint.** It's only honoured by
