@@ -5,7 +5,23 @@ from unittest.mock import AsyncMock
 
 from httpx import ASGITransport, AsyncClient
 
+from app.config import settings
 from app.main import app
+
+
+@pytest.fixture(autouse=True)
+def _pin_ablation_flags(monkeypatch):
+    """Pin the ablation flags to their documented defaults for every test.
+
+    Settings are read from `.env`, which the app service passes into the test container — so a
+    developer running with ROUTER_MODE=classifier locally would silently change what the graph
+    tests exercise. (That happened: the real classifier routed a test question to multihop and
+    hit the unmocked decomposer.) Tests that care about a flag monkeypatch it themselves; this
+    just guarantees a known starting point.
+    """
+    monkeypatch.setattr(settings, "router_mode", "llm")
+    monkeypatch.setattr(settings, "decompose_enabled", True)
+    monkeypatch.setattr(settings, "critic_mode", "cosine")
 
 
 @pytest.fixture
