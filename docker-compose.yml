@@ -33,6 +33,8 @@ services:
       - ./app:/app/app
       - ./alembic:/app/alembic
       - ./tests:/app/tests
+      - ./eval:/app/eval
+      - ./data:/app/data
     command: >
       sh -c "alembic upgrade head &&
              uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"

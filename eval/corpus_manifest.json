@@ -1,0 +1,31 @@
+{
+  "documents": [
+    {
+      "filename": "appeals-procedures.md",
+      "chunks": 5,
+      "sha256": "6854d243d343e34e1c1a1af356ccf0e678579fc2e0f1dd3d63e3c26cb04b332a"
+    },
+    {
+      "filename": "morvanex-policy.md",
+      "chunks": 4,
+      "sha256": "b225164382a73e8cb3f56d7bf8de6e54efd751b4b6d103f63ce57a4f87168e8d"
+    },
+    {
+      "filename": "plan-benefits.md",
+      "chunks": 4,
+      "sha256": "5763f3faa87bd9bb5cc81819bdb2a7597005872062dbcb1a848449241ca80d39"
+    },
+    {
+      "filename": "specialty-pharmacy.md",
+      "chunks": 4,
+      "sha256": "535f6a9c190f9d37b9aa6f4b19609b332d16b22d8c2acad0b284f8265991914a"
+    },
+    {
+      "filename": "zeltavir-policy.md",
+      "chunks": 5,
+      "sha256": "349383b9661b6717e6a1dde4001b50cecedeea8638b664dc3b7f1874051429ae"
+    }
+  ],
+  "total_chunks": 22,
+  "corpus_sha256": "3e62e719d1c3f4cede0de0c9c428f4982e8249a11056650f3f953db29320ad05"
+}
