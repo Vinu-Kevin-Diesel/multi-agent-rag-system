@@ -153,6 +153,15 @@ docker compose run --rm --no-deps app pytest tests/test_graph_refine.py -q
 For local inference, run `scripts/setup-ollama.ps1` on the host first and set the `LLM_*` /
 `ROUTER_MODEL` block in `.env` (see `.env.example`).
 
+### Evaluation corpus
+
+`eval/corpus/` holds five synthetic policy documents (22 chunks) used for every eval run.
+`eval/ingest_corpus.py` drops the database and re-ingests them deterministically; `--verify`
+compares against the committed `corpus_manifest.json` and exits 1 on drift, so it can gate a run.
+
+Determinism is checked by **SHA-256 of the chunk text**, not chunk count — a mutated corpus was
+observed producing the same 22 chunks with a different hash. See `eval/README.md`.
+
 ### Testing conventions
 
 - **Graph-level tests drive the real compiled graph** (`build_agent_graph().ainvoke(...)`) with
@@ -162,6 +171,9 @@ For local inference, run `scripts/setup-ollama.ps1` on the host first and set th
   `make_llm_client`). A bare `AsyncMock` auto-vivifies any attribute, so a wrong-shaped mock fails
   silently; `SimpleNamespace` raises on a shape mismatch. The agents call
   `client.chat.completions.create` (OpenAI shape), never `client.messages.create`.
+- **Tests must not depend on your `.env`.** The app service passes `env_file: .env` into the test
+  container, so a local `ROUTER_MODE=classifier` once silently changed what the graph tests
+  exercised. `conftest` pins the ablation flags per-test; keep it that way.
 - **A regression test must be seen to fail on the pre-fix code.** Several tests here were verified
   by temporarily reverting the fix and confirming the assertion fails (e.g. the budget starvation
   test, the original-question test). A test that can't fail proves nothing.
