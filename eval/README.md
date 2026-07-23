@@ -45,9 +45,42 @@ drift and 0 when clean, so it can gate an eval run in CI.
 Document IDs are `uuid4` and differ between runs, so they are excluded from the hash. The harness
 queries across all documents, so IDs are irrelevant; chunk text and ordering are not.
 
-## Known limitation
+## Golden question set
+
+`golden_set.jsonl` — one JSON object per line, the questions every eval run is scored against.
+
+| field | meaning |
+|---|---|
+| `id` | stable identifier (`gs-001`…), never reused or renumbered |
+| `question` | asked verbatim over HTTP by the harness |
+| `query_type` | gold routing label — `factual` \| `comparative` \| `multihop` |
+| `ground_truth` | the correct answer, for RAGAS `answer_correctness` / `context_recall` |
+| `expected_docs` | corpus filenames that contain the answer |
+
+Batch 1 is 20 items, deliberately factual-heavy (16 factual, 4 comparative); comparative and
+multi-hop weighting comes in the later batches.
+
+**Every `ground_truth` was read out of the source document, not generated.** A hallucinated ground
+truth produces confident, precise, entirely fictional metrics, and nothing downstream will flag it.
+
+`query_type` is gold for two purposes at once: RAGAS scores broken down per type, and the router
+confusion matrix (LLM router vs. trained classifier vs. this label).
+
+### Why `expected_docs` and not `expected_pages`
+
+The corpus is markdown, which carries no pagination, so `page_number` is not a usable locator here
+— `SourceChunk.page_number` is nullable for exactly this reason. Document attribution is what can
+actually be verified by eye and what retrieval failures are diagnosed against, so the field records
+filenames instead. Note the query API returns `chunk_id`/`content` but not a filename, so this
+field documents and diagnoses; it is not matched automatically by the harness.
+
+## Known limitations
 
 22 chunks is small. With `top_k=5` a query retrieves roughly a fifth of the corpus, so
 `context_precision` is an easier problem here than against a production-scale store. The corpus is
 sized for a hand-verifiable golden set, not for retrieval stress-testing — worth stating alongside
 any metric taken from it.
+
+The golden set is synthetic and single-corpus. It measures whether the pipeline reads *these*
+documents correctly; it says nothing about domain generalisation. Both figures — 50 items, one
+corpus — belong next to any headline metric.
