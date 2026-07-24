@@ -57,8 +57,14 @@ queries across all documents, so IDs are irrelevant; chunk text and ordering are
 | `ground_truth` | the correct answer, for RAGAS `answer_correctness` / `context_recall` |
 | `expected_docs` | corpus filenames that contain the answer |
 
-Batch 1 is 20 items, deliberately factual-heavy (16 factual, 4 comparative); comparative and
-multi-hop weighting comes in the later batches.
+40 items so far: **16 factual, 13 comparative, 11 multi-hop**. Batch 1 was deliberately
+factual-heavy; batch 2 weights comparative and multi-hop to pull the mix toward balance. Batch 3
+tops it up to ~50, roughly even across the three types.
+
+Every multi-hop item's answer genuinely spans **two or more documents** — neither source answers it
+alone. The canonical shape: Zeltavir is Tier 4 (PA-2291) → Tier 4 costs 20% coinsurance under
+GoldCare HMO (BEN-2025). A question that is merely long is not multi-hop, and padding the set with
+those would make the decompose ablation look better than it is.
 
 **Every `ground_truth` was read out of the source document, not generated.** A hallucinated ground
 truth produces confident, precise, entirely fictional metrics, and nothing downstream will flag it.
