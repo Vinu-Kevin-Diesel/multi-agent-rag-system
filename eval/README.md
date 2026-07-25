@@ -57,14 +57,31 @@ queries across all documents, so IDs are irrelevant; chunk text and ordering are
 | `ground_truth` | the correct answer, for RAGAS `answer_correctness` / `context_recall` |
 | `expected_docs` | corpus filenames that contain the answer |
 
-40 items so far: **16 factual, 13 comparative, 11 multi-hop**. Batch 1 was deliberately
-factual-heavy; batch 2 weights comparative and multi-hop to pull the mix toward balance. Batch 3
-tops it up to ~50, roughly even across the three types.
+**50 items, `gs-001`…`gs-050`, balanced 17 factual / 17 comparative / 16 multi-hop.** Built in
+three batches (factual-heavy first, then comparative + multi-hop, then a balancing top-up); the
+batch boundaries no longer matter now that it is complete.
 
 Every multi-hop item's answer genuinely spans **two or more documents** — neither source answers it
 alone. The canonical shape: Zeltavir is Tier 4 (PA-2291) → Tier 4 costs 20% coinsurance under
 GoldCare HMO (BEN-2025). A question that is merely long is not multi-hop, and padding the set with
-those would make the decompose ablation look better than it is.
+those would make the decompose ablation look better than it is — so it is a hard rule the validator
+enforces, not a guideline.
+
+### Validation
+
+`validate_golden_set.py` is the structural gate. No services required — it reads files only:
+
+```bash
+python eval/validate_golden_set.py            # exit 0 if valid, 1 on the first problem
+```
+
+It checks: every row is valid JSON with exactly the five required fields; ids are the contiguous
+run `gs-001..gs-050`, unique; `query_type` is one of the three; `question` and `ground_truth` are
+non-empty; questions are unique; every `expected_docs` entry resolves to a file in `corpus/`; and
+every `multihop` row names ≥ 2 documents.
+
+It is structural only. It **cannot** check that a `ground_truth` is *correct* — that is done by eye
+against the source document, and is the one step no script replaces.
 
 **Every `ground_truth` was read out of the source document, not generated.** A hallucinated ground
 truth produces confident, precise, entirely fictional metrics, and nothing downstream will flag it.
