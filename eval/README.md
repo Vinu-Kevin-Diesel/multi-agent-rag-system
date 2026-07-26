@@ -97,6 +97,35 @@ actually be verified by eye and what retrieval failures are diagnosed against, s
 filenames instead. Note the query API returns `chunk_id`/`content` but not a filename, so this
 field documents and diagnoses; it is not matched automatically by the harness.
 
+## Collection harness
+
+`run_eval.py` runs the golden set against a **running** instance and records raw results for
+scoring. It hits `POST /api/query` over HTTP on purpose — it evaluates the system as shipped (API,
+compiled graph, real vector store, local model under the running configuration), not an imported
+graph that would bypass all of that.
+
+```bash
+docker compose up -d db app                              # app must be reachable
+docker compose run --rm app python eval/ingest_corpus.py --verify   # populate + gate the corpus
+docker compose exec -T app python eval/run_eval.py --config full     # collect a run
+```
+
+- `--config` is a **label only**. It does not change the system — the ablation flags live in the
+  running app's environment (`ROUTER_MODE`, `DECOMPOSE_ENABLED`, `CRITIC_MODE`). The day-17 sweep
+  restarts the app per configuration and runs this with a matching `--config`. No endpoint reports
+  those flags, so the label is trusted, not verified — set it to match what you booted.
+- Output: `runs/{config}_{timestamp}.jsonl`, **append-only, never overwritten** — a fresh
+  timestamped file per run. Rows are flushed as they complete, so an interrupted run keeps its
+  partial results. `runs/` is git-ignored (generated data); the scored CSVs are added explicitly.
+- Each row carries the gold fields (`question`, `gold_query_type`, `ground_truth`, `expected_docs`)
+  next to the prediction (`answer`, `predicted_query_type`, `confidence`, `retrieval_attempts`,
+  `contexts` = `sources[].content`, `latency_s`), so the scoring step needs no join back. The four
+  RAGAS inputs — question, answer, contexts, ground_truth — are present on every row.
+- A failed query is recorded with an `error` string and the run continues; one bad item never
+  abandons the other 49. A summary (routing accuracy, latency, mean confidence) prints at the end.
+- `--limit N` runs only the first N items — a fast smoke check before committing to a ~45-minute
+  50-item sweep on an 8 GB laptop (measured ~50 s/item).
+
 ## Known limitations
 
 22 chunks is small. With `top_k=5` a query retrieves roughly a fifth of the corpus, so

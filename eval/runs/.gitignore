@@ -1,0 +1,4 @@
+# Raw eval run outputs are generated, not source. Keep the directory, ignore its contents.
+# The scored CSVs the day-17 sweep commits are added explicitly with `git add -f`.
+*
+!.gitignore
