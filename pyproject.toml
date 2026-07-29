@@ -34,6 +34,19 @@ dev = [
     # Training the router classifier only. Runtime inference is pure numpy over the exported
     # weights (app/agents/router_model.npz) — sklearn is not needed to serve.
     "scikit-learn>=1.5.0",
+    # RAGAS scoring for the eval harness (eval/run_ragas.py). Dev-only: nothing the API serves
+    # imports it. langchain-openai is the adapter that points RAGAS's judge at any
+    # OpenAI-compatible endpoint (NIM here), keeping the provider-agnostic story intact.
+    # Checked before pinning: this bumps langchain-core 1.5.0 -> 1.5.2 (a patch) and leaves
+    # langgraph 1.2.9 alone, so the graph the eval measures is not altered by the eval's own deps.
+    "ragas>=0.4.0",
+    "langchain-openai>=1.0.0",
+    # Pinned back on purpose. ragas 0.4.3's llms/base.py does a hard
+    # `from langchain_community.chat_models.vertexai import ChatVertexAI`, and 0.4.x removed that
+    # module — so `import ragas` itself raises ModuleNotFoundError against a current
+    # langchain-community. 0.3.31 still declares langchain-core<2.0,>=0.3.78, so langchain-core
+    # stays at 1.5.2 and langgraph is untouched: the graph under evaluation is unaffected.
+    "langchain-community<0.4",
 ]
 
 [build-system]
