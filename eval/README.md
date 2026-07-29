@@ -186,6 +186,27 @@ breakdown computed from a partially-scored run is a selection-biased artefact �
 mean would be taken over whichever comparative answers happened to be short. Raise `--timeout` for
 long-answer configurations and check the printed coverage before reporting anything per type.
 
+### Cost, and what the ablation sweep drops
+
+Measured on this hardware (RTX 4060 8 GB laptop, judge on NIM's free tier), per configuration:
+
+| stage | cost |
+|---|---|
+| collection (50 items, local 8B) | ~47 min |
+| scoring (5 metrics × 50 items = 250 judge jobs) | ~3.5 h |
+
+Scoring dominates, and not because of our concurrency — NIM's shared 503 ceiling serialises the
+workers down to an effective ~1. Five configurations at that rate is ~20 hours, which does not fit
+a day.
+
+**The sweep therefore scores four metrics, dropping `answer_correctness`** (`--metrics
+faithfulness,answer_relevancy,context_precision,context_recall`). It is the most expensive metric
+— it decomposes both answer and ground truth into statements before comparing — and was the least
+reliable, at 28% coverage on the first full run. The ablation question ("does each component earn
+its keep?") is still answered: `faithfulness` and `answer_relevancy` cover generation quality,
+`context_precision`/`context_recall` cover retrieval, which is what the router and decompose flags
+actually move. The headline `full` run keeps all five.
+
 ### Dependency note
 
 `ragas 0.4.3` hard-imports `langchain_community.chat_models.vertexai`, which `langchain-community`

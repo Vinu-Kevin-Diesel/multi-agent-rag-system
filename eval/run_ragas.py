@@ -108,6 +108,10 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--types", default=None,
                         help="comma-separated gold_query_type filter, e.g. 'comparative' — for "
                              "re-scoring the slice a previous run timed out on")
+    parser.add_argument("--metrics", default=None,
+                        help="comma-separated subset of: faithfulness, answer_relevancy, "
+                             "context_precision, context_recall, answer_correctness. Defaults to "
+                             "all five. The day-17 sweep drops answer_correctness — see README.")
     parser.add_argument("--out", type=Path, default=None, help="output CSV (default: <run>_scored.csv)")
     args = parser.parse_args(argv)
 
@@ -146,8 +150,26 @@ def main(argv: list[str]) -> int:
         faithfulness,
     )
 
+    available = {
+        "faithfulness": faithfulness,
+        "answer_relevancy": answer_relevancy,
+        "context_precision": context_precision,
+        "context_recall": context_recall,
+        "answer_correctness": answer_correctness,
+    }
+    if args.metrics:
+        names = [m.strip() for m in args.metrics.split(",") if m.strip()]
+        unknown = [m for m in names if m not in available]
+        if unknown:
+            print(f"unknown metric(s): {unknown}. Choose from {list(available)}", file=sys.stderr)
+            return 1
+    else:
+        names = list(available)
+    chosen = [available[m] for m in names]
+
     judge_model, judge_base_url, judge_api_key = _judge_settings()
     print(f"run:    {run_path.name}  ({len(scorable)} scorable, {len(skipped)} skipped)")
+    print(f"metrics: {', '.join(names)}")
     print(f"judge:  {judge_model} @ {judge_base_url}")
     print(f"config: workers={args.workers} timeout={args.timeout:.0f}s "
           f"retries={SDK_MAX_RETRIES}(sdk)+{OUTER_MAX_RETRIES}(outer) max_wait={MAX_WAIT}s\n")
@@ -172,7 +194,7 @@ def main(argv: list[str]) -> int:
 
     result = evaluate(
         dataset=dataset,
-        metrics=[faithfulness, answer_relevancy, context_precision, context_recall, answer_correctness],
+        metrics=chosen,
         llm=llm,
         embeddings=embeddings,
         run_config=RunConfig(max_workers=args.workers, timeout=args.timeout,
