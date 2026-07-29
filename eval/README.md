@@ -126,6 +126,95 @@ docker compose exec -T app python eval/run_eval.py --config full     # collect a
 - `--limit N` runs only the first N items — a fast smoke check before committing to a ~45-minute
   50-item sweep on an 8 GB laptop (measured ~50 s/item).
 
+## Scoring with RAGAS
+
+`run_ragas.py` scores a collected run. Collection and scoring are separate steps on purpose:
+collection is slow (~50 s/item on a local 8B) and scoring costs hosted-judge calls, so a bug in
+one must never force you to redo the other.
+
+```bash
+docker compose run --rm --no-deps app python eval/run_ragas.py --latest
+docker compose run --rm --no-deps app python eval/run_ragas.py --run eval/runs/full_....jsonl --limit 3
+```
+
+Writes `{run_stem}_scored.csv` next to the input, one row per item, and prints the aggregate.
+
+| metric | what it catches |
+|---|---|
+| `faithfulness` | answer not supported by the retrieved contexts (hallucination) |
+| `answer_relevancy` | answer does not address the question |
+| `context_precision` | retrieved chunks are noise |
+| `context_recall` | retrieval missed what the ground truth needs |
+| `answer_correctness` | answer disagrees with the ground truth |
+
+**The judge is never the model under test.** It resolves from `JUDGE_*` (falling back to
+`NVIDIA_API_KEY`) exactly as `app/dependencies.py` does, and runs on a strong hosted model.
+Scoring a local 8B with that same 8B measures self-consistency, not correctness — the numbers
+would look fine and mean nothing.
+
+**Embeddings run locally**, on the same MiniLM the app uses, through a small
+`langchain_core.embeddings.Embeddings` adapter over `sentence-transformers` (already a dependency,
+so no extra package). RAGAS makes many embedding calls for `answer_relevancy` and
+`answer_correctness`; routing those through the hosted API would spend the free tier's rate-limit
+budget on embeddings instead of on judging. Judge concurrency defaults to 3 with 10 retries for
+the same reason — a rate-limited run that dies halfway wastes the whole collection.
+
+The scored CSV carries `id`, `gold_query_type`, `predicted_query_type`, `confidence`,
+`retrieval_attempts` and `latency_s` alongside the metrics, so the day-18 analysis (per-type
+breakdown, router confusion matrix, critic-vs-faithfulness correlation) needs no join back.
+
+### Judge reliability — read before trusting a metric
+
+The judge is a hosted model on a shared free tier, and it fails in a way that **biases results
+rather than announcing itself**. A metric whose judge call ultimately fails comes back `NaN`, and
+`.mean()` skips it silently — so the script always prints the denominator (`32/50 scored`). Treat a
+metric with partial coverage as provisional, never as a headline number.
+
+Two failure modes, both observed on the first full run:
+
+- **`503 ResourceExhausted: Worker local total request limit reached (N/48)`** — NIM's *shared*
+  concurrency ceiling. It fires regardless of our own `--workers`, so retries are mandatory. Keep
+  them bounded at one layer: the SDK owns retries (it honours `Retry-After`), `RunConfig` keeps a
+  small outer retry. Configuring both at 10 made a 3-item job sit at 0% CPU for 15 minutes.
+- **Timeouts on long answers.** `faithfulness` extracts statements from an answer and judges each
+  one, so cost scales with answer length. Comparative answers here have a median of ~1350
+  characters against ~334 for factual — 4×. At `--timeout 300` this produced coverage of 15/17
+  factual but only **5/17 comparative**.
+
+That second one is the dangerous one: the losses are **concentrated by query type**, so a per-type
+breakdown computed from a partially-scored run is a selection-biased artefact — the comparative
+mean would be taken over whichever comparative answers happened to be short. Raise `--timeout` for
+long-answer configurations and check the printed coverage before reporting anything per type.
+
+### Cost, and what the ablation sweep drops
+
+Measured on this hardware (RTX 4060 8 GB laptop, judge on NIM's free tier), per configuration:
+
+| stage | cost |
+|---|---|
+| collection (50 items, local 8B) | ~47 min |
+| scoring (5 metrics × 50 items = 250 judge jobs) | ~3.5 h |
+
+Scoring dominates, and not because of our concurrency — NIM's shared 503 ceiling serialises the
+workers down to an effective ~1. Five configurations at that rate is ~20 hours, which does not fit
+a day.
+
+**The sweep therefore scores four metrics, dropping `answer_correctness`** (`--metrics
+faithfulness,answer_relevancy,context_precision,context_recall`). It is the most expensive metric
+— it decomposes both answer and ground truth into statements before comparing — and was the least
+reliable, at 28% coverage on the first full run. The ablation question ("does each component earn
+its keep?") is still answered: `faithfulness` and `answer_relevancy` cover generation quality,
+`context_precision`/`context_recall` cover retrieval, which is what the router and decompose flags
+actually move. The headline `full` run keeps all five.
+
+### Dependency note
+
+`ragas 0.4.3` hard-imports `langchain_community.chat_models.vertexai`, which `langchain-community`
+0.4.x removed — so `import ragas` fails outright against a current one. `pyproject.toml` pins
+`langchain-community<0.4`; 0.3.31 still allows `langchain-core<2.0,>=0.3.78`, so `langchain-core`
+stays at 1.5.2 and `langgraph` is untouched. That matters beyond convenience: **the eval's own
+dependencies must not alter the graph being evaluated.**
+
 ## Known limitations
 
 22 chunks is small. With `top_k=5` a query retrieves roughly a fifth of the corpus, so
