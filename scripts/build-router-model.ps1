@@ -29,6 +29,15 @@ Write-Host "Deriving $variant from $base ..." -ForegroundColor Cyan
 $modelfile = (& ollama show $base --modelfile) -split "`n" |
     Where-Object { $_ -notmatch '^\s*#' }         # drop the informational comment header
 
+# `ollama show --modelfile` emits FROM as an absolute blob path inside the *server's* filesystem
+# (e.g. /root/.ollama/models/blobs/sha256-...). Passing that back to `ollama create` fails with
+# "400 Bad Request: invalid model name". Ollama's own generated header says to replace it with the
+# model name, so do exactly that — it is also the portable form, independent of where the server
+# stores its blobs.
+$modelfile = $modelfile | ForEach-Object {
+    if ($_ -match '^\s*FROM\s') { "FROM $base" } else { $_ }
+}
+
 # Force both thinking gates in the qwen3 template to the no-think branch:
 #   $.IsThinkSet -> true   (the /think|/no_think block only fires when this is set; /v1 never sets it)
 #   $.Think      -> false  (selects /no_think, and emits the empty <think></think> that ends reasoning)
@@ -47,7 +56,17 @@ $tmp = Join-Path $env:TEMP "qwen3-router.modelfile"
 Set-Content -Path $tmp -Value $modelfile -NoNewline
 
 & ollama create $variant -f $tmp
+$createExit = $LASTEXITCODE
 Remove-Item $tmp -ErrorAction SilentlyContinue
+
+# `ollama create` reports failure through the exit code, not a terminating error, so without this
+# the script printed "Built ..." over a 400 and the missing model was only noticed much later.
+if ($createExit -ne 0) {
+    throw "ollama create failed (exit $createExit) - '$variant' was NOT built"
+}
+if (-not (& ollama list | Select-String -SimpleMatch $variant)) {
+    throw "'$variant' is absent from 'ollama list' despite a clean exit"
+}
 
 Write-Host "Built '$variant'. Point the router at it in .env:" -ForegroundColor Green
 Write-Host "   ROUTER_MODEL=$variant"

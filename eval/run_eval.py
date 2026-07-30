@@ -38,6 +38,18 @@ import httpx
 GOLDEN_PATH = Path(__file__).parent / "golden_set.jsonl"
 RUNS_DIR = Path(__file__).parent / "runs"
 
+# The ablation configurations, and the flags each one requires the app to be running with.
+# `--config` names one of these; the harness reads /health and refuses to collect against a
+# mismatch, so a run's label and its actual configuration cannot silently diverge. A name absent
+# from this table (e.g. `smoke`) is accepted without a check.
+CONFIG_FLAGS = {
+    "baseline":   {"router_mode": "off", "decompose_enabled": False, "critic_mode": "off"},
+    "+router":    {"router_mode": "llm", "decompose_enabled": False, "critic_mode": "off"},
+    "+decompose": {"router_mode": "llm", "decompose_enabled": True, "critic_mode": "off"},
+    "full":       {"router_mode": "llm", "decompose_enabled": True, "critic_mode": "cosine"},
+    "full-clf":   {"router_mode": "classifier", "decompose_enabled": True, "critic_mode": "cosine"},
+}
+
 
 def _load_golden(path: Path) -> list[dict]:
     rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -103,6 +115,8 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--limit", type=int, default=None, help="only the first N items (smoke test)")
     parser.add_argument("--timeout", type=float, default=300.0, help="per-request timeout (s)")
     parser.add_argument("--out-dir", type=Path, default=RUNS_DIR)
+    parser.add_argument("--allow-mismatch", action="store_true",
+                        help="collect even when the app's flags disagree with the --config name")
     args = parser.parse_args(argv)
 
     golden = _load_golden(args.golden)
@@ -111,11 +125,32 @@ def main(argv: list[str]) -> int:
 
     # Fail fast and clearly if the app is not reachable, rather than 50 identical connection errors.
     try:
-        httpx.get(f"{args.base_url}/health", timeout=10.0).raise_for_status()
+        health = httpx.get(f"{args.base_url}/health", timeout=10.0)
+        health.raise_for_status()
     except Exception as e:  # noqa: BLE001
         print(f"app not reachable at {args.base_url} ({e}). Is `docker compose up -d db app` running?",
               file=sys.stderr)
         return 1
+
+    # Record the configuration actually in force. The --config label is caller-supplied, and a run
+    # collected against the wrong flags is otherwise indistinguishable from a correct one: a `full`
+    # run was once collected with router_mode=classifier, which is the `full-clf` configuration.
+    # Every row carries these, so a mislabelled run stays diagnosable after the fact.
+    flags = health.json().get("flags")
+    if flags is None:
+        print("app /health does not report ablation flags — rebuild the image so runs record the "
+              "configuration they were collected under", file=sys.stderr)
+        return 1
+
+    expected = CONFIG_FLAGS.get(args.config)
+    if expected and any(flags.get(k) != v for k, v in expected.items()):
+        actual = {k: flags.get(k) for k in expected}
+        print(f"config mismatch: --config {args.config} expects {expected}, app is running {actual}.",
+              file=sys.stderr)
+        print("Restart the app with the right flags, or pass --allow-mismatch to record anyway.",
+              file=sys.stderr)
+        if not args.allow_mismatch:
+            return 1
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     started_at = datetime.now(timezone.utc)
@@ -123,6 +158,8 @@ def main(argv: list[str]) -> int:
     out_path = args.out_dir / f"{args.config}_{stamp}.jsonl"
 
     print(f"config={args.config}  base_url={args.base_url}  items={len(golden)}  top_k={args.top_k}")
+    print(f"flags:  router_mode={flags['router_mode']} router_model={flags['router_model']} "
+          f"decompose_enabled={flags['decompose_enabled']} critic_mode={flags['critic_mode']}")
     print(f"writing {out_path}\n")
 
     rows: list[dict] = []
@@ -130,7 +167,7 @@ def main(argv: list[str]) -> int:
             out_path.open("w", encoding="utf-8") as fh:
         for i, item in enumerate(golden, 1):
             row = _query(client, item, args.top_k)
-            row = {"config": args.config, "run_started_at": stamp, **row}
+            row = {"config": args.config, "run_started_at": stamp, "flags": flags, **row}
             fh.write(json.dumps(row, ensure_ascii=False) + "\n")
             fh.flush()  # keep partial results if the run is interrupted
             rows.append(row)
