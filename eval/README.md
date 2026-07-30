@@ -186,6 +186,23 @@ breakdown computed from a partially-scored run is a selection-biased artefact �
 mean would be taken over whichever comparative answers happened to be short. Raise `--timeout` for
 long-answer configurations and check the printed coverage before reporting anything per type.
 
+- **`429 Too Many Requests` — the free tier has a finite budget, and scoring spends it fast.**
+  Roughly six hours of judge calls in one day exhausted it here. When it happens, *every* metric's
+  coverage collapses at once (4/50 across the board), which is the tell: uniformly low coverage
+  means the judge stopped answering, not that the answers were bad. The script warns explicitly
+  when the worst metric falls under half, because the printed aggregate is otherwise a
+  plausible-looking number computed from almost nothing.
+
+**Budget the judge across the day.** A full 50-item scoring is ~250 judge jobs; the day-17 sweep is
+four of those back to back. Do not spend the quota on exploratory re-runs — score once, keep the
+output, and re-score only the slice that failed (`--types`).
+
+Scored output is therefore **never overwritten**: the default filename carries a UTC timestamp
+(`{run}_scored_{stamp}.csv`) and an existing path needs `--force`. This mirrors `run_eval.py`'s
+append-only rule, and for the same reason — it was added after a re-score run against an exhausted
+quota wrote 4/50 coverage on top of an existing 32/50 result, which could only be recovered by
+scoring the whole run again.
+
 ### Cost, and what the ablation sweep drops
 
 Measured on this hardware (RTX 4060 8 GB laptop, judge on NIM's free tier), per configuration:

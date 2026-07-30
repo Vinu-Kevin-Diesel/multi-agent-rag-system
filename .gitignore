@@ -44,3 +44,6 @@ htmlcov/
 
 # Internal working plan — local only, not published
 PLAN.md
+
+# transient backup written by scripts/run-ablation-sweep.ps1
+.env.sweep-backup

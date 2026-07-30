@@ -50,6 +50,11 @@ OUTER_MAX_RETRIES = 3        # RunConfig's retry around the whole metric call
 MAX_WAIT = 60                # cap a single backoff so a stall stays diagnosable
 
 
+def _utc_stamp() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
 def _load_run(path: Path) -> tuple[list[dict], list[dict]]:
     """Return (scorable rows, skipped rows). A failed or context-less query cannot be scored."""
     rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -112,7 +117,10 @@ def main(argv: list[str]) -> int:
                         help="comma-separated subset of: faithfulness, answer_relevancy, "
                              "context_precision, context_recall, answer_correctness. Defaults to "
                              "all five. The day-17 sweep drops answer_correctness — see README.")
-    parser.add_argument("--out", type=Path, default=None, help="output CSV (default: <run>_scored.csv)")
+    parser.add_argument("--out", type=Path, default=None,
+                        help="output CSV (default: <run>_scored_<timestamp>.csv, never overwritten)")
+    parser.add_argument("--force", action="store_true",
+                        help="allow overwriting an existing output file")
     args = parser.parse_args(argv)
 
     if args.latest:
@@ -210,7 +218,18 @@ def main(argv: list[str]) -> int:
                      ("retrieval_attempts", "retrieval_attempts"), ("latency_s", "latency_s")):
         df[col] = [r.get(key) for r in scorable]
 
-    out_path = args.out or run_path.with_name(run_path.stem + "_scored.csv")
+    # Never overwrite a previous scoring, for the same reason run_eval.py never overwrites a run:
+    # a scored file is expensive and irreplaceable. Learned by destroying one — a re-score that
+    # ran while the judge quota was exhausted wrote 4/50 coverage over an existing 32/50 result,
+    # and the only recovery was to score the raw run again from scratch.
+    if args.out:
+        out_path = args.out
+    else:
+        stamp = _utc_stamp()
+        out_path = run_path.with_name(f"{run_path.stem}_scored_{stamp}.csv")
+    if out_path.exists() and not args.force:
+        print(f"refusing to overwrite {out_path} — pass --force or --out", file=sys.stderr)
+        return 1
     df.to_csv(out_path, index=False)
 
     metric_cols = [c for c in ("faithfulness", "answer_relevancy", "context_precision",
@@ -222,6 +241,15 @@ def main(argv: list[str]) -> int:
         scored = df[c].notna().sum()
         note = "" if scored == len(df) else f"   ({scored}/{len(df)} scored, rest NaN)"
         print(f"  {c:20} {df[c].mean():.3f}{note}")
+    # Low coverage across every metric at once is not a property of the answers — it means the
+    # judge stopped answering (free-tier quota, or a sustained 429/503). Say so, because the
+    # aggregate above is otherwise a plausible-looking number computed from almost nothing.
+    if metric_cols:
+        worst = min(df[c].notna().sum() for c in metric_cols)
+        if worst < 0.5 * len(df):
+            print(f"\nWARNING: coverage as low as {worst}/{len(df)} — this usually means the judge "
+                  f"was rate-limited or out of quota, not that the answers scored badly.\n"
+                  f"         Do not report these numbers; re-score once quota resets.")
     if skipped:
         print(f"\nskipped {len(skipped)} unscorable row(s): {[r['id'] for r in skipped]}")
     print(f"\nwrote {out_path}")
