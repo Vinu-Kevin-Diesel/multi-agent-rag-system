@@ -98,6 +98,30 @@ def _spearman(xs: list[float], ys: list[float]) -> float | None:
     return num / (dx * dy)
 
 
+def _permutation_p(xs: list[float], ys: list[float], observed: float, iters: int = 20000) -> float:
+    """Two-sided p for a Spearman rho, by shuffling one series.
+
+    A permutation test rather than a t-approximation: it needs no special functions, makes no
+    distributional assumption, and is easy to check by eye. Seeded, so the reported p is stable
+    across runs.
+
+    This matters more than the rho itself here. At n=47 a correlation of ~0.2 sits near the noise
+    floor, and quoting it bare invites reading "weak positive relationship" into what may be no
+    relationship at all.
+    """
+    import random
+
+    rng = random.Random(0)
+    shuffled = list(ys)
+    hits = 0
+    for _ in range(iters):
+        rng.shuffle(shuffled)
+        r = _spearman(xs, shuffled)
+        if r is not None and abs(r) >= abs(observed):
+            hits += 1
+    return (hits + 1) / (iters + 1)  # add-one keeps p strictly positive
+
+
 def _latest_scored(runs_dir: Path) -> dict[str, Path]:
     """Newest *_scored_*.csv per config, keyed by the config recorded inside the file."""
     latest: dict[str, tuple[float, Path]] = {}
@@ -205,11 +229,15 @@ def analyze_critic(scored: dict[str, list[dict]]) -> list[dict]:
             print(f"\n  {config:<12} n={len(pairs):<3} confidence is constant "
                   f"({xs[0]:.3f}) — critic disabled, correlation undefined")
             out.append({"config": config, "n": len(pairs), "spearman": None,
+                        "p_value": None, "significant": None,
                         "note": "confidence constant (critic off)"})
             continue
-        print(f"\n  {config:<12} n={len(pairs):<3} spearman={rho:+.3f}"
-              f"   mean_conf={sum(xs) / len(xs):.3f}  mean_faith={sum(ys) / len(ys):.3f}")
-        out.append({"config": config, "n": len(pairs), "spearman": round(rho, 4), "note": ""})
+        p = _permutation_p(xs, ys, rho)
+        verdict = "significant at p<0.05" if p < 0.05 else "NOT distinguishable from zero"
+        print(f"\n  {config:<12} n={len(pairs):<3} spearman={rho:+.3f}  p={p:.3f}  -> {verdict}"
+              f"\n  {'':<12} mean_conf={sum(xs) / len(xs):.3f}  mean_faith={sum(ys) / len(ys):.3f}")
+        out.append({"config": config, "n": len(pairs), "spearman": round(rho, 4),
+                    "p_value": round(p, 4), "significant": p < 0.05, "note": ""})
     return out
 
 
@@ -240,7 +268,8 @@ def main(argv: list[str]) -> int:
             ("analysis_per_type.csv", per_type,
              ["config", "metric", "query_type", "mean", "n", "coverage", "trustworthy"]),
             ("analysis_confusion.csv", confusion, ["config", "gold", "predicted", "count"]),
-            ("analysis_critic_correlation.csv", critic, ["config", "n", "spearman", "note"]),
+            ("analysis_critic_correlation.csv", critic,
+             ["config", "n", "spearman", "p_value", "significant", "note"]),
         ):
             if not rows:
                 continue
