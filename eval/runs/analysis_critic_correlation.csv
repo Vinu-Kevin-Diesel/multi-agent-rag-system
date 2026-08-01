@@ -1,0 +1,3 @@
+config,n,spearman,p_value,significant,note
++decompose,21,,,,confidence constant (critic off)
+full,47,0.2066,0.1634,False,

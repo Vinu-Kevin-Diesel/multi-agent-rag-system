@@ -250,6 +250,13 @@ def main(argv: list[str]) -> int:
             print(f"\nWARNING: coverage as low as {worst}/{len(df)} — this usually means the judge "
                   f"was rate-limited or out of quota, not that the answers scored badly.\n"
                   f"         Do not report these numbers; re-score once quota resets.")
+    # Nothing scored at all means the judge never answered. Exit non-zero so a batch loop stops
+    # rather than working through the remaining configurations against a dead judge — which is
+    # exactly what happened when quota died mid-sweep and three more runs "succeeded" with 0/50.
+    if metric_cols and all(df[c].notna().sum() == 0 for c in metric_cols):
+        print("\nERROR: nothing was scored — judge unavailable. Not a result; retry when quota "
+              "resets.", file=sys.stderr)
+        return 2
     if skipped:
         print(f"\nskipped {len(skipped)} unscorable row(s): {[r['id'] for r in skipped]}")
     print(f"\nwrote {out_path}")
