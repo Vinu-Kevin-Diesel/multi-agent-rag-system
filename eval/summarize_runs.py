@@ -27,7 +27,7 @@ RUNS_DIR = Path(__file__).parent / "runs"
 TYPES = ["factual", "comparative", "multihop"]
 
 # Ablation order, so the table reads as a progression rather than alphabetically.
-CONFIG_ORDER = ["baseline", "+router", "+decompose", "full", "full-clf"]
+CONFIG_ORDER = ["baseline", "+router", "+decompose", "full", "full-clf", "full-nli"]
 
 
 def _latest_per_config(runs_dir: Path) -> dict[str, Path]:

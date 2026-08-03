@@ -46,6 +46,8 @@ $matrix = [ordered]@{
     "+decompose" = @{ ROUTER_MODE = "llm";        DECOMPOSE_ENABLED = "true";  CRITIC_MODE = "off" }
     "full"       = @{ ROUTER_MODE = "llm";        DECOMPOSE_ENABLED = "true";  CRITIC_MODE = "cosine" }
     "full-clf"   = @{ ROUTER_MODE = "classifier"; DECOMPOSE_ENABLED = "true";  CRITIC_MODE = "cosine" }
+    # Same as full but scored by entailment instead of cosine, so the pair isolates the critic.
+    "full-nli"   = @{ ROUTER_MODE = "llm";        DECOMPOSE_ENABLED = "true";  CRITIC_MODE = "nli" }
 }
 
 function Invoke-Docker {

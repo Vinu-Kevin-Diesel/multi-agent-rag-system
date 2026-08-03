@@ -48,6 +48,8 @@ CONFIG_FLAGS = {
     "+decompose": {"router_mode": "llm", "decompose_enabled": True, "critic_mode": "off"},
     "full":       {"router_mode": "llm", "decompose_enabled": True, "critic_mode": "cosine"},
     "full-clf":   {"router_mode": "classifier", "decompose_enabled": True, "critic_mode": "cosine"},
+    # Identical to `full` except for the scorer, so the pair isolates the critic metric itself.
+    "full-nli":   {"router_mode": "llm", "decompose_enabled": True, "critic_mode": "nli"},
 }
 
 
