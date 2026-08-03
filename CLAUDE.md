@@ -247,13 +247,57 @@ observed producing the same 22 chunks with a different hash. See `eval/README.md
 - Update `docs/performance.md` when a change affects latency, and `.env.example` when a setting is
   added.
 
+## Evaluation
+
+The evaluation lives in `eval/` and is documented in `eval/README.md`. Reproduce it with
+`scripts/reproduce-eval.ps1` (`-SkipScore` runs everything that needs no judge).
+
+```
+ingest_corpus.py --verify   frozen corpus, gated on a SHA-256 of the chunk text
+validate_golden_set.py      structural gate on the 50-item golden set
+run_eval.py --config X      collect over HTTP against a running app
+summarize_runs.py           routing / latency / critic cost   (no judge)
+run_ragas.py --run X        RAGAS scoring                     (hosted judge)
+analyze.py                  per-type, confusion, correlation
+```
+
+Two rules the harness enforces, both added after being violated:
+
+- **A run records the flags it was actually collected under.** `/health` reports the live ablation
+  flags, `run_eval.py` writes them on every row and refuses to collect when they disagree with the
+  `--config` label. A run labelled `full` was once collected with `router_mode=classifier` — the
+  `full-clf` configuration — and nothing in the output revealed it.
+- **Scored output is never overwritten** (`{run}_scored_{utc}.csv`, `--force` to override), and
+  coverage is always printed. A judge failure yields `NaN`, `.mean()` skips it silently, and those
+  failures were measured to cluster by query type — so a per-type mean over the surviving rows is
+  a selection artefact. `analyze.py` suppresses per-type splits below 80% coverage.
+
+### What the ablation concluded
+
+Full numbers and caveats are in the README. The two findings that should change how the code is
+read:
+
+- **The trained classifier is worse than the LLM router it was built to replace** — 66% vs 80%
+  routing accuracy, and it sends 11 of 16 multi-hop questions to the factual agent. Its F1=0.96
+  came from a held-out split of synthetic templates. Prefer `router_mode=llm` unless VRAM forces
+  otherwise.
+- **The cosine critic's confidence does not predict groundedness** (Spearman +0.207, p=0.163
+  against RAGAS faithfulness), and the retry loop it drives triples latency. The NLI critic
+  (`critic_mode=nli`) is a much better discriminator in isolation but did not improve the
+  correlation; that comparison is confounded because the loop selects on the score it is being
+  measured against, and remains unresolved.
+
 ## Current state
 
-The query pipeline runs locally and is instrumented. Router and decompose are schema-constrained
-and run on the no-think model; the context budget, per-node latency logging, and bounded LLM
-timeouts are in place; ablation flags are wired.
+The query pipeline runs locally and is instrumented, the ablation flags are wired
+(`router_mode` = `llm` | `classifier` | `off`, `decompose_enabled`, `critic_mode` = `cosine` |
+`nli` | `off`), and all six configurations have been collected and analysed. Tagged `v1.0`.
 
-Planned (not yet built): a trained classifier to replace the LLM router (removing the second
-model), an NLI-based critic, a frozen eval corpus and golden question set, and a RAGAS evaluation
-harness with an ablation study across the flag configurations. The judge client already exists for
-that harness.
+Known gaps, in the order they would be worth closing:
+
+1. **A measure-but-do-not-act critic mode.** Scores recorded without the retry loop conditioning
+   on them, so the confidence-vs-faithfulness question can actually be settled.
+2. **Retrieval for multi-hop.** `context_precision` 0.539 and `context_recall` 0.797 against ~0.80
+   and 1.000 for the other two types — the multi-hop deficit is upstream of the agent.
+3. **A judge that does not rate-limit.** The free tier exhausted repeatedly and is what capped
+   scoring coverage at 30–47 of 50 depending on the run.

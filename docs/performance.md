@@ -149,3 +149,42 @@ Held-out accuracy 0.961 (F1: factual 0.970, comparative 0.970, multihop 0.944). 
 loads `qwen3-router` for *decompose*; replacing that generative step is out of scope here. Caveat:
 0.961 is on a **synthetic** question set (see `data/README.md`) — an optimistic proxy for real
 queries; the true test is the RAGAS routing accuracy on the golden set.
+
+---
+
+# Whole-pipeline latency on the evaluation hardware
+
+The numbers above were measured on an RTX 5070 (12 GB). Everything from day 15 onward runs on an
+**RTX 4060 Laptop (8 GB)**, where `OLLAMA_CONTEXT_LENGTH=8192` and `MAX_CONTEXT_TOKENS=4000`
+(see the sizing table in `CLAUDE.md`). Do not compare across the two machines.
+
+Measured over the full 50-question golden set, one run per ablation configuration:
+
+| config | router | decompose | critic | mean | median | max | attempts |
+|---|---|---|---|---|---|---|---|
+| `baseline` | off | off | off | 20.5s | 15.7s | 75.3s | 1.00 |
+| `+router` | LLM | off | off | 19.1s | 16.9s | 49.2s | 1.00 |
+| `+decompose` | LLM | on | off | 18.2s | 15.7s | 56.5s | 1.00 |
+| `full` | LLM | on | cosine | 55.0s | 49.3s | 169.5s | 2.26 |
+| `full-clf` | classifier | on | cosine | 55.4s | 51.0s | 137.9s | 2.36 |
+| `full-nli` | LLM | on | NLI | 81.1s | 67.4s | 247.5s | 2.46 |
+
+**The critic dominates the latency budget.** `+decompose` → `full` changes one flag and mean
+latency triples, 18.2s → 55.0s. The cost is not the scoring — cosine scoring is ~0.05s of local
+embedding work — it is the **retry loop**: mean attempts rise from 1.00 to 2.26, and 62% of
+queries exhaust all three. Mean confidence (0.737) sits below the threshold (0.78), so the loop
+usually runs to exhaustion rather than converging, and each extra attempt pays for a re-retrieval
+plus a full re-generation.
+
+**Routing is effectively free.** `baseline` → `+router` costs nothing measurable (20.5s → 19.1s,
+within run-to-run noise on a laptop GPU that thermally throttles); the no-think router variant
+answers in well under a second. Decomposition is likewise free at this scale (18.2s).
+
+**NLI scoring adds ~26s over cosine** (55.0s → 81.1s) for the same number of attempts, split
+between the cross-encoder itself and its slightly higher retry rate (2.46 vs 2.26). The
+cross-encoder scores every answer sentence against every source sentence, so cost grows with the
+product of the two — noticeably more than cosine's single embedding pass.
+
+**Caveat on all of these:** an 8 GB mobile GPU throttles under sustained load, and a sweep runs
+for hours. Treat differences under a few seconds as noise; the 3× critic penalty is far outside
+that band, the routing difference is not.
