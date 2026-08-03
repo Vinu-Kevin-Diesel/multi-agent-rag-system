@@ -44,3 +44,12 @@ full-clf,comparative,multihop,2
 full-clf,multihop,factual,11
 full-clf,multihop,comparative,0
 full-clf,multihop,multihop,5
+full-nli,factual,factual,12
+full-nli,factual,comparative,0
+full-nli,factual,multihop,5
+full-nli,comparative,factual,1
+full-nli,comparative,comparative,15
+full-nli,comparative,multihop,1
+full-nli,multihop,factual,3
+full-nli,multihop,comparative,1
+full-nli,multihop,multihop,12
