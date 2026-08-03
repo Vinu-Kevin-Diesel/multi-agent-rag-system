@@ -82,6 +82,43 @@ async def test_fluent_but_unsupported_answer_is_rejected(nli_available):
     assert nli < 0.2, "entailment must reject an unsupported claim"
 
 
+async def test_discriminates_against_realistic_multi_topic_chunks(nli_available):
+    """The regression that a first full run failed silently.
+
+    Scoring an answer against a whole retrieved chunk collapses entailment toward zero: a real
+    220-token chunk (well inside the 512-token limit — this is not truncation) gave 0.0019 for
+    both a true and a false claim. Mean confidence over 49 questions came out at 0.024, every
+    query exhausted its retries, and nothing in the output said the scorer had stopped
+    discriminating. Splitting the premise into sentences is what restores the signal.
+
+    This chunk is deliberately realistic: multi-topic, with a heading glued on by chunking, and
+    the supporting clause buried in the middle.
+    """
+    from app.agents.critic_agent import score_answer_nli
+
+    chunk = _chunks(
+        "Authorization period Once approved, authorization for Zeltavir remains valid for 12 "
+        "months from the date of approval. Reauthorization requires documented clinical benefit, "
+        "defined as a reduction of at least 20 percent in tender joint count from baseline, "
+        "measured at or after week 12. If reauthorization is not submitted before the "
+        "authorization expires, the member must restart the full initial review, including a "
+        "repeat test dose. Quantity limits Zeltavir is limited to two 40 mg prefilled syringes "
+        "per 28-day period. The first fill is limited to a 14-day supply."
+    )
+
+    true_claim = await score_answer_nli(
+        "Zeltavir authorization is valid for 12 months from the date of approval.", chunk)
+    false_claim = await score_answer_nli(
+        "Zeltavir authorization is valid for 24 months from the date of approval.", chunk)
+
+    assert true_claim > false_claim, "must separate a supported claim from an unsupported one"
+    # The margin is what died under whole-chunk premises, where both sat at 0.0019.
+    assert true_claim > false_claim * 5, (
+        f"separation collapsed: true={true_claim:.4f} false={false_claim:.4f} — the scorer is "
+        "no longer discriminating, which is how the first NLI run failed silently"
+    )
+
+
 async def test_empty_and_missing_inputs_score_zero(nli_available):
     from app.agents.critic_agent import score_answer_nli
 

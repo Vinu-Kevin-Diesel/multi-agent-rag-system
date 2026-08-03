@@ -54,27 +54,37 @@ def _entailment_index() -> int:
 
 
 def _score_nli_sync(answer: str, chunk_texts: list[str]) -> float:
-    """Mean over answer sentences of the best entailment any single chunk provides.
+    """Mean over answer sentences of the best entailment any single source sentence provides.
 
-    Per sentence rather than per answer: NLI cross-encoders are trained on short hypothesis pairs,
-    and a multi-sentence answer as one hypothesis scores poorly regardless of support. Taking the
-    max over chunks then averaging over sentences mirrors how RAGAS faithfulness treats
-    statements, which is what this is meant to correlate with.
+    **Both sides are split into sentences.** This is not an optimisation — it is what makes the
+    metric work at all. A cross-encoder trained on sentence pairs collapses toward zero when the
+    premise is a multi-topic passage: measured on a real retrieved chunk (220 tokens, well inside
+    the 512-token limit, so not truncation), a correct and clearly supported claim scored 0.0019
+    against the whole chunk but 0.0563 against the one sentence that supports it. Against whole
+    chunks a true claim and a false one both scored 0.0019 — no discrimination whatsoever, and a
+    first full run produced a mean confidence of 0.024 with every query exhausting its retries.
+
+    Answer sentences are the hypotheses for the same reason: a multi-sentence answer as one
+    hypothesis scores poorly regardless of support. Max over sources then mean over answer
+    sentences mirrors how RAGAS faithfulness treats statements, which is the quantity this is
+    meant to track.
     """
-    sentences = [s for s in _split_sentences(answer) if len(s) > 15]
-    if not sentences or not chunk_texts:
+    hypotheses = [s for s in _split_sentences(answer) if len(s) > 15]
+    premises = [s for c in chunk_texts for s in _split_sentences(c) if len(s) > 15]
+    if not hypotheses or not premises:
         return 0.0
 
     model = _get_nli_model()
     ent = _entailment_index()
 
-    # One batched call: sentence-major, so the reshape below lines up with `sentences`.
-    pairs = [(chunk, sentence) for sentence in sentences for chunk in chunk_texts]
+    # One batched call, hypothesis-major so the stride below lines up with `hypotheses`.
+    pairs = [(p, h) for h in hypotheses for p in premises]
     probs = model.predict(pairs, apply_softmax=True)
 
+    n = len(premises)
     per_sentence = [
-        max(probs[i * len(chunk_texts) + j][ent] for j in range(len(chunk_texts)))
-        for i in range(len(sentences))
+        max(probs[i * n + j][ent] for j in range(n))
+        for i in range(len(hypotheses))
     ]
     return float(sum(per_sentence) / len(per_sentence))
 
