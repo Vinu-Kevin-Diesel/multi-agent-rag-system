@@ -24,7 +24,7 @@ from typing import Any, TypedDict
 from langgraph.graph import END, StateGraph
 
 from app.agents.comparative_agent import run_comparative_agent
-from app.agents.critic_agent import generate_refined_query, score_answer
+from app.agents.critic_agent import generate_refined_query, score_answer, score_answer_nli
 from app.agents.decompose import decompose_question
 from app.agents.factual_agent import run_factual_agent
 from app.agents.multihop_agent import run_multihop_agent
@@ -204,10 +204,15 @@ async def critic_node(state: AgentState) -> dict:
 
     critic_mode=off is the ablation without self-correction: skip scoring and report 1.0 so
     should_retry finishes after one pass. The sentinel marks "not critiqued" in the response.
-    (nli / llm scoring — day 19.)
+
+    cosine and nli report on different scales — see critic_agent's module docstring and the
+    paired thresholds in config. should_retry picks the matching threshold.
     """
     if settings.critic_mode == "off":
         return {"confidence": 1.0}
+    if settings.critic_mode == "nli":
+        confidence = await score_answer_nli(state["answer"], state["source_chunks"])
+        return {"confidence": confidence}
     confidence = await score_answer(state["answer"], state["source_chunks"])
     return {"confidence": confidence}
 
@@ -255,8 +260,16 @@ def should_retry(state: AgentState) -> str:
     """Decide whether to re-retrieve or finish."""
     if settings.critic_mode == "off":
         return "done"
+    # The threshold must follow the scorer. Cosine similarity and entailment probability are not
+    # comparable quantities, so applying the cosine threshold to an NLI score would change the
+    # retry rate for no reason other than the scale shift.
+    threshold = (
+        settings.critic_nli_threshold
+        if settings.critic_mode == "nli"
+        else settings.critic_similarity_threshold
+    )
     if (
-        state["confidence"] < settings.critic_similarity_threshold
+        state["confidence"] < threshold
         and state["retrieval_attempts"] < settings.max_retrieval_attempts
     ):
         return "refine"

@@ -39,7 +39,7 @@ RUNS_DIR = Path(__file__).parent / "runs"
 TYPES = ["factual", "comparative", "multihop"]
 METRICS = ["faithfulness", "answer_relevancy", "context_precision", "context_recall",
            "answer_correctness"]
-CONFIG_ORDER = ["baseline", "+router", "+decompose", "full", "full-clf"]
+CONFIG_ORDER = ["baseline", "+router", "+decompose", "full", "full-clf", "full-nli"]
 
 # Below this share of rows a metric is reported but not broken down per type: the judge failures
 # behind the gap were measured to cluster by query type, so the surviving rows are not a random

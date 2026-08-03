@@ -63,6 +63,17 @@ class Settings(BaseSettings):
     critic_similarity_threshold: float = 0.78
     max_retrieval_attempts: int = 3
 
+    # ── NLI critic (critic_mode=nli) ───────────────────────────────────────
+    # Cross-encoder scoring entailment of each answer sentence against each retrieved chunk.
+    # Runs locally on CPU; downloads on first use like the embedding model.
+    critic_nli_model: str = "cross-encoder/nli-deberta-v3-small"
+    # A SEPARATE threshold, because entailment probability and cosine similarity are not the same
+    # scale. Cosine over an answer and its own sources rarely falls below ~0.6 even when the
+    # answer is wrong, which is why 0.78 sits where it does. Mean entailment separates far more
+    # sharply — measured 0.72 for a supported claim against 0.001 for a fluent unsupported one —
+    # so the midpoint is a defensible cut rather than a tuned one.
+    critic_nli_threshold: float = 0.5
+
     # Token budget for the source chunks handed to an agent. A safety rail, not an
     # optimisation: sized to sit well clear of a 16k-context local model once the system
     # prompt, question and generated answer are accounted for. The multi-hop path can
@@ -81,8 +92,8 @@ class Settings(BaseSettings):
     #   decompose_enabled: true — multi-hop questions are split into sub-questions (default)
     #                      false— multi-hop takes a single retrieval pass, no decomposition
     #   critic_mode:       cosine — score grounding by cosine similarity, retry if low (default)
+    #                      nli    — score grounding by entailment (cross-encoder), retry if low
     #                      off    — accept the first answer; no scoring, no retry loop
-    #                      (nli / llm scoring land on day 19)
     router_mode: str = "llm"
     decompose_enabled: bool = True
     critic_mode: str = "cosine"
