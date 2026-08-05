@@ -163,6 +163,32 @@ The scored CSV carries `id`, `gold_query_type`, `predicted_query_type`, `confide
 `retrieval_attempts` and `latency_s` alongside the metrics, so the day-18 analysis (per-type
 breakdown, router confusion matrix, critic-vs-faithfulness correlation) needs no join back.
 
+### Judge responses are cached
+
+Scoring 50 items across five metrics is ~250 judge calls, and the free tier exhausts. Responses are
+therefore cached on disk at `eval/.judge_cache/` (git-ignored), so **re-scoring an unchanged run
+costs no quota**:
+
+```bash
+python eval/run_ragas.py --run eval/runs/full_....jsonl      # cached by default
+python eval/run_ragas.py --run ... --no-cache                # force fresh calls
+```
+
+Every run prints `judge cache: N hits, M misses`, so it is visible how much of a score was actually
+paid for.
+
+Caching happens at the **LLM call**, not the metric. langchain keys on `(prompt, llm_string)`: the
+prompt already carries the question, the answer, the contexts and the metric's own template, and
+`llm_string` carries the judge model and its parameters. Change the judge, the temperature, or a
+metric's prompt and the entries simply do not match — a stricter key than anything assembled by
+hand. It is sound because the judge runs at `temperature=0`; a sampling judge would need
+`--no-cache`.
+
+This exists because quota, not engineering, was the binding constraint on the v1.0 evaluation: it
+exhausted twice mid-sweep, and two correlations ended up compared at n=30 against n=47 for reasons
+of budget rather than design. With the cache, a re-score after an analysis bug is free and only
+genuinely new work reaches the API.
+
 ### Judge reliability — read before trusting a metric
 
 The judge is a hosted model on a shared free tier, and it fails in a way that **biases results

@@ -35,6 +35,7 @@ import sys
 from pathlib import Path
 
 RUNS_DIR = Path(__file__).parent / "runs"
+CACHE_PATH = Path(__file__).parent / ".judge_cache" / "judge.sqlite"
 
 # NIM's free tier returns 503 "ResourceExhausted: Worker local total request limit reached (N/48)"
 # — a *shared* concurrency ceiling, so it can fire even when our own concurrency is low. Retries
@@ -53,6 +54,67 @@ MAX_WAIT = 60                # cap a single backoff so a stall stays diagnosable
 def _utc_stamp() -> str:
     from datetime import datetime, timezone
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
+def _install_judge_cache(path: Path):
+    """Cache judge responses on disk so re-scoring a run costs no quota.
+
+    Caching happens at the LLM call, not the metric: langchain keys on
+    (prompt, llm_string), and the prompt already carries the question, the answer, the contexts
+    AND the metric's own template, while llm_string carries the model and its parameters. That is
+    a stricter key than anything assembled by hand here — change the judge model, the temperature
+    or a metric's prompt and the entries simply do not match.
+
+    Sound because the judge runs at temperature=0. A sampling judge would need this disabled.
+
+    Why it earns its place: scoring 50 items across five metrics is ~250 judge calls, and the free
+    tier exhausted repeatedly during the v1.0 evaluation — twice mid-sweep, leaving comparisons at
+    n=30 against n=47 purely because of quota rather than design. With this, a re-score after an
+    analysis bug costs nothing, and only genuinely new work hits the API.
+    """
+    from langchain_community.cache import SQLiteCache
+    from langchain_core.caches import BaseCache
+    from langchain_core.globals import set_llm_cache
+
+    class _CountingCache(BaseCache):
+        """Wraps a cache to report how much of a run was actually free."""
+
+        def __init__(self, inner):
+            self._inner = inner
+            self.hits = 0
+            self.misses = 0
+
+        def _count(self, value):
+            if value is None:
+                self.misses += 1
+            else:
+                self.hits += 1
+            return value
+
+        def lookup(self, prompt, llm_string):
+            return self._count(self._inner.lookup(prompt, llm_string))
+
+        def update(self, prompt, llm_string, return_val):
+            return self._inner.update(prompt, llm_string, return_val)
+
+        def clear(self, **kwargs):
+            return self._inner.clear(**kwargs)
+
+        # RAGAS drives the judge asynchronously, so the async path is the one that actually runs.
+        # Counting only the sync path would report 0 hits on a fully cached run.
+        async def alookup(self, prompt, llm_string):
+            return self._count(await self._inner.alookup(prompt, llm_string))
+
+        async def aupdate(self, prompt, llm_string, return_val):
+            return await self._inner.aupdate(prompt, llm_string, return_val)
+
+        async def aclear(self, **kwargs):
+            return await self._inner.aclear(**kwargs)
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    cache = _CountingCache(SQLiteCache(database_path=str(path)))
+    set_llm_cache(cache)
+    return cache
 
 
 def _load_run(path: Path) -> tuple[list[dict], list[dict]]:
@@ -121,6 +183,10 @@ def main(argv: list[str]) -> int:
                         help="output CSV (default: <run>_scored_<timestamp>.csv, never overwritten)")
     parser.add_argument("--force", action="store_true",
                         help="allow overwriting an existing output file")
+    parser.add_argument("--no-cache", action="store_true",
+                        help="bypass the judge cache and re-issue every call (costs quota)")
+    parser.add_argument("--cache-path", type=Path, default=CACHE_PATH,
+                        help=f"judge cache location (default {CACHE_PATH})")
     args = parser.parse_args(argv)
 
     if args.latest:
@@ -181,6 +247,9 @@ def main(argv: list[str]) -> int:
     print(f"judge:  {judge_model} @ {judge_base_url}")
     print(f"config: workers={args.workers} timeout={args.timeout:.0f}s "
           f"retries={SDK_MAX_RETRIES}(sdk)+{OUTER_MAX_RETRIES}(outer) max_wait={MAX_WAIT}s\n")
+
+    cache = None if args.no_cache else _install_judge_cache(args.cache_path)
+    print(f"cache:  {'disabled (--no-cache)' if cache is None else args.cache_path}")
 
     llm = LangchainLLMWrapper(ChatOpenAI(
         model=judge_model, base_url=judge_base_url, api_key=judge_api_key,
@@ -250,6 +319,13 @@ def main(argv: list[str]) -> int:
             print(f"\nWARNING: coverage as low as {worst}/{len(df)} — this usually means the judge "
                   f"was rate-limited or out of quota, not that the answers scored badly.\n"
                   f"         Do not report these numbers; re-score once quota resets.")
+    if cache is not None:
+        total = cache.hits + cache.misses
+        pct = f"{cache.hits / total:.0%}" if total else "n/a"
+        print(f"\njudge cache: {cache.hits} hits, {cache.misses} misses ({pct} served from cache)")
+        if cache.misses == 0 and total:
+            print("             every call was cached — this re-score cost no quota")
+
     # Nothing scored at all means the judge never answered. Exit non-zero so a batch loop stops
     # rather than working through the remaining configurations against a dead judge — which is
     # exactly what happened when quota died mid-sweep and three more runs "succeeded" with 0/50.
