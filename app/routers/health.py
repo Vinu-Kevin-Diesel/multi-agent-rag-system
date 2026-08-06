@@ -20,5 +20,6 @@ async def health_check():
             router_model=settings.effective_router_model,
             decompose_enabled=settings.decompose_enabled,
             critic_mode=settings.critic_mode,
+            critic_retry_enabled=settings.critic_retry_enabled,
         ),
     )

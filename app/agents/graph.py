@@ -260,6 +260,12 @@ def should_retry(state: AgentState) -> str:
     """Decide whether to re-retrieve or finish."""
     if settings.critic_mode == "off":
         return "done"
+    # Measure-but-do-not-act: the answer was still scored and the confidence still reported, but
+    # the score is not permitted to change what was retrieved. Without this the recorded
+    # confidence is the score of the accepted answer, and any correlation computed against it is
+    # conditioned on the loop that produced it.
+    if not settings.critic_retry_enabled:
+        return "done"
     # The threshold must follow the scorer. Cosine similarity and entailment probability are not
     # comparable quantities, so applying the cosine threshold to an NLI score would change the
     # retry rate for no reason other than the scale shift.

@@ -98,6 +98,19 @@ class Settings(BaseSettings):
     decompose_enabled: bool = True
     critic_mode: str = "cosine"
 
+    # Whether the critic's score is allowed to *act*. Orthogonal to critic_mode, which only picks
+    # the scorer.
+    #
+    #   true  (default) — score, and re-retrieve when the score is below threshold
+    #   false           — score and report, never retry ("measure-but-do-not-act")
+    #
+    # false exists to make the confidence score measurable. With the loop on, the recorded
+    # confidence is the score of the *accepted* answer: the loop stops as soon as a score clears
+    # the threshold, so it conditions on the very quantity being evaluated. Correlating that
+    # against RAGAS faithfulness measures the loop as much as the metric. Disabling the action
+    # while keeping the scoring removes the confound and leaves the question answerable.
+    critic_retry_enabled: bool = True
+
     host: str = "0.0.0.0"
     port: int = 8000
 

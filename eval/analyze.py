@@ -39,7 +39,8 @@ RUNS_DIR = Path(__file__).parent / "runs"
 TYPES = ["factual", "comparative", "multihop"]
 METRICS = ["faithfulness", "answer_relevancy", "context_precision", "context_recall",
            "answer_correctness"]
-CONFIG_ORDER = ["baseline", "+router", "+decompose", "full", "full-clf", "full-nli"]
+CONFIG_ORDER = ["baseline", "+router", "+decompose", "full", "full-clf", "full-nli",
+                "measure-cosine", "measure-nli"]
 
 # Below this share of rows a metric is reported but not broken down per type: the judge failures
 # behind the gap were measured to cluster by query type, so the surviving rows are not a random
@@ -120,6 +121,38 @@ def _permutation_p(xs: list[float], ys: list[float], observed: float, iters: int
         if r is not None and abs(r) >= abs(observed):
             hits += 1
     return (hits + 1) / (iters + 1)  # add-one keeps p strictly positive
+
+
+def _bootstrap_ci(xs: list[float], ys: list[float], iters: int = 10000,
+                  alpha: float = 0.05) -> tuple[float, float] | None:
+    """Percentile bootstrap CI for a Spearman rho, resampling (x, y) pairs together.
+
+    Pairs, not each series independently: resampling them apart would destroy the association
+    being estimated and produce an interval for zero correlation no matter what the data says.
+
+    A p-value answers "could this be noise?"; the interval answers "how large could it plausibly
+    be?". At the sample sizes here the second question is the more honest one — an interval that
+    spans from clearly negative to clearly positive says the experiment cannot resolve the effect,
+    which a bare rho hides.
+    """
+    import random
+
+    n = len(xs)
+    if n < 5:
+        return None
+    rng = random.Random(0)  # seeded: the reported interval must not move between runs
+    rhos = []
+    for _ in range(iters):
+        idx = [rng.randrange(n) for _ in range(n)]
+        r = _spearman([xs[i] for i in idx], [ys[i] for i in idx])
+        if r is not None:  # a resample can be constant; skip rather than count it as zero
+            rhos.append(r)
+    if len(rhos) < iters // 2:
+        return None
+    rhos.sort()
+    lo = rhos[int((alpha / 2) * len(rhos))]
+    hi = rhos[int((1 - alpha / 2) * len(rhos)) - 1]
+    return lo, hi
 
 
 def _latest_scored(runs_dir: Path) -> dict[str, Path]:
@@ -230,14 +263,20 @@ def analyze_critic(scored: dict[str, list[dict]]) -> list[dict]:
                   f"({xs[0]:.3f}) — critic disabled, correlation undefined")
             out.append({"config": config, "n": len(pairs), "spearman": None,
                         "p_value": None, "significant": None,
+                        "ci_low": None, "ci_high": None,
                         "note": "confidence constant (critic off)"})
             continue
         p = _permutation_p(xs, ys, rho)
+        ci = _bootstrap_ci(xs, ys)
         verdict = "significant at p<0.05" if p < 0.05 else "NOT distinguishable from zero"
-        print(f"\n  {config:<12} n={len(pairs):<3} spearman={rho:+.3f}  p={p:.3f}  -> {verdict}"
+        ci_txt = f"  95% CI [{ci[0]:+.3f}, {ci[1]:+.3f}]" if ci else ""
+        print(f"\n  {config:<12} n={len(pairs):<3} spearman={rho:+.3f}  p={p:.3f}{ci_txt}"
+              f"\n  {'':<12} -> {verdict}"
               f"\n  {'':<12} mean_conf={sum(xs) / len(xs):.3f}  mean_faith={sum(ys) / len(ys):.3f}")
         out.append({"config": config, "n": len(pairs), "spearman": round(rho, 4),
-                    "p_value": round(p, 4), "significant": p < 0.05, "note": ""})
+                    "p_value": round(p, 4), "significant": p < 0.05,
+                    "ci_low": round(ci[0], 4) if ci else None,
+                    "ci_high": round(ci[1], 4) if ci else None, "note": ""})
     return out
 
 
@@ -269,7 +308,7 @@ def main(argv: list[str]) -> int:
              ["config", "metric", "query_type", "mean", "n", "coverage", "trustworthy"]),
             ("analysis_confusion.csv", confusion, ["config", "gold", "predicted", "count"]),
             ("analysis_critic_correlation.csv", critic,
-             ["config", "n", "spearman", "p_value", "significant", "note"]),
+             ["config", "n", "spearman", "p_value", "significant", "ci_low", "ci_high", "note"]),
         ):
             if not rows:
                 continue
