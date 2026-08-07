@@ -133,7 +133,7 @@ def _judge_settings() -> tuple[str, str, str]:
     """Resolve the judge exactly as app/dependencies.py does: JUDGE_* first, NVIDIA_API_KEY as the
     legacy fallback. Read from the environment rather than importing app.config, so scoring does
     not drag in the application stack."""
-    model = os.getenv("JUDGE_MODEL", "deepseek-ai/deepseek-v4-flash")
+    model = os.getenv("JUDGE_MODEL", "nvidia/llama-3.3-nemotron-super-49b-v1.5")
     base_url = os.getenv("JUDGE_BASE_URL", "https://integrate.api.nvidia.com/v1")
     api_key = os.getenv("JUDGE_API_KEY") or os.getenv("NVIDIA_API_KEY")
     if not api_key:
