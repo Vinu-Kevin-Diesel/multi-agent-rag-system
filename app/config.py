@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     # ── The model under test ───────────────────────────────────────────────
     # Serves user queries. Any OpenAI-compatible endpoint: NVIDIA NIM today, a local
     # Ollama/vLLM server tomorrow. Nothing outside dependencies.py knows which.
-    llm_model: str = "deepseek-ai/deepseek-v4-flash"
+    llm_model: str = "nvidia/llama-3.3-nemotron-super-49b-v1.5"
     llm_base_url: str = "https://integrate.api.nvidia.com/v1"
     llm_api_key: str | None = None
 
@@ -27,7 +27,10 @@ class Settings(BaseSettings):
     # Used only by the RAGAS harness; never serves user traffic. Kept deliberately
     # separate from the model under test: once queries run on a local 8B, scoring its
     # output with itself yields noise, not data. The judge stays on a stronger model.
-    judge_model: str = "deepseek-ai/deepseek-v4-flash"
+    # NIM retires models without notice: kimi-k2.5 went during v1.0 development and
+    # deepseek-v4-flash returned 410 Gone partway through v1.1, taking the judge for every earlier
+    # measurement with it. Verify the configured judge answers before trusting a scoring run.
+    judge_model: str = "nvidia/llama-3.3-nemotron-super-49b-v1.5"
     judge_base_url: str = "https://integrate.api.nvidia.com/v1"
     judge_api_key: str | None = None
 
@@ -97,6 +100,19 @@ class Settings(BaseSettings):
     router_mode: str = "llm"
     decompose_enabled: bool = True
     critic_mode: str = "cosine"
+
+    # Whether the critic's score is allowed to *act*. Orthogonal to critic_mode, which only picks
+    # the scorer.
+    #
+    #   true  (default) — score, and re-retrieve when the score is below threshold
+    #   false           — score and report, never retry ("measure-but-do-not-act")
+    #
+    # false exists to make the confidence score measurable. With the loop on, the recorded
+    # confidence is the score of the *accepted* answer: the loop stops as soon as a score clears
+    # the threshold, so it conditions on the very quantity being evaluated. Correlating that
+    # against RAGAS faithfulness measures the loop as much as the metric. Disabling the action
+    # while keeping the scoring removes the confound and leaves the question answerable.
+    critic_retry_enabled: bool = True
 
     host: str = "0.0.0.0"
     port: int = 8000

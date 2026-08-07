@@ -50,6 +50,13 @@ CONFIG_FLAGS = {
     "full-clf":   {"router_mode": "classifier", "decompose_enabled": True, "critic_mode": "cosine"},
     # Identical to `full` except for the scorer, so the pair isolates the critic metric itself.
     "full-nli":   {"router_mode": "llm", "decompose_enabled": True, "critic_mode": "nli"},
+    # Measure-but-do-not-act. Same pipeline as `full`/`full-nli`, but the score never changes what
+    # was retrieved — so confidence can be correlated against faithfulness without the retry loop
+    # having selected on it first.
+    "measure-cosine": {"router_mode": "llm", "decompose_enabled": True, "critic_mode": "cosine",
+                       "critic_retry_enabled": False},
+    "measure-nli":    {"router_mode": "llm", "decompose_enabled": True, "critic_mode": "nli",
+                       "critic_retry_enabled": False},
 }
 
 

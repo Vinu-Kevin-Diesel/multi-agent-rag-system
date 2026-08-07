@@ -215,3 +215,51 @@ async def test_nli_score_above_threshold_finishes_in_one_pass(wiring, monkeypatc
 
     assert wiring["refine"] == 0
     assert result["retrieval_attempts"] == 1
+
+
+# ── measure-but-do-not-act (critic_retry_enabled=false) ────────────────────
+
+async def test_measure_mode_scores_but_never_retries(wiring, monkeypatch):
+    """The confound this mode exists to remove.
+
+    With the loop on, the recorded confidence is the score of the *accepted* answer: the loop
+    stops as soon as a score clears the threshold, so it conditions on the very quantity being
+    evaluated, and correlating it against faithfulness measures the loop as much as the metric.
+    Scoring must still happen — a mode that skipped it would report nothing to correlate.
+    """
+    monkeypatch.setattr("app.agents.graph.settings.critic_mode", "nli")
+    monkeypatch.setattr("app.agents.graph.settings.critic_retry_enabled", False)
+    monkeypatch.setattr("app.agents.graph.settings.critic_nli_threshold", 0.5)
+
+    result = await build_agent_graph().ainvoke(_state())
+
+    # 0.10 from the fixture is far below the threshold, so with retries on this would refine twice.
+    assert wiring["nli"] == 1, "the answer must still be scored"
+    assert wiring["refine"] == 0, "a sub-threshold score must NOT trigger refinement"
+    assert result["retrieval_attempts"] == 1
+    assert result["confidence"] == 0.10, "the real score must be reported, not a 1.0 sentinel"
+
+
+async def test_measure_mode_applies_to_cosine_too(wiring, monkeypatch):
+    """The flag is orthogonal to the scorer: it governs whether the score acts, not which one runs."""
+    monkeypatch.setattr("app.agents.graph.settings.critic_mode", "cosine")
+    monkeypatch.setattr("app.agents.graph.settings.critic_retry_enabled", False)
+
+    result = await build_agent_graph().ainvoke(_state())
+
+    assert wiring["cosine"] == 1 and wiring["nli"] == 0
+    assert wiring["refine"] == 0
+    assert result["retrieval_attempts"] == 1
+
+
+async def test_retry_still_fires_when_enabled(wiring, monkeypatch):
+    """Guards the default: measure mode must not become the accidental behaviour for everyone."""
+    monkeypatch.setattr("app.agents.graph.settings.critic_mode", "nli")
+    monkeypatch.setattr("app.agents.graph.settings.critic_retry_enabled", True)
+    monkeypatch.setattr("app.agents.graph.settings.critic_nli_threshold", 0.5)
+    monkeypatch.setattr("app.agents.graph.settings.max_retrieval_attempts", 2)
+
+    result = await build_agent_graph().ainvoke(_state())
+
+    assert wiring["refine"] >= 1
+    assert result["retrieval_attempts"] == 2

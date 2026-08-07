@@ -48,6 +48,11 @@ $matrix = [ordered]@{
     "full-clf"   = @{ ROUTER_MODE = "classifier"; DECOMPOSE_ENABLED = "true";  CRITIC_MODE = "cosine" }
     # Same as full but scored by entailment instead of cosine, so the pair isolates the critic.
     "full-nli"   = @{ ROUTER_MODE = "llm";        DECOMPOSE_ENABLED = "true";  CRITIC_MODE = "nli" }
+    # Measure-but-do-not-act: scored, but the score never changes what was retrieved. These exist
+    # so confidence can be correlated against faithfulness without the retry loop having selected
+    # on it first.
+    "measure-cosine" = @{ ROUTER_MODE = "llm"; DECOMPOSE_ENABLED = "true"; CRITIC_MODE = "cosine"; CRITIC_RETRY_ENABLED = "false" }
+    "measure-nli"    = @{ ROUTER_MODE = "llm"; DECOMPOSE_ENABLED = "true"; CRITIC_MODE = "nli";    CRITIC_RETRY_ENABLED = "false" }
 }
 
 function Invoke-Docker {
@@ -79,6 +84,10 @@ function Set-EnvFlags {
     $text = [System.IO.File]::ReadAllText($envPath, [System.Text.UTF8Encoding]::new($false))
     $all = $Flags.Clone()
     $all["ROUTER_MODEL"] = "qwen3-router"   # held constant; see .NOTES
+    # Every configuration must set every flag explicitly. A row that omits one would otherwise
+    # inherit whatever the previous configuration left in .env -- the sweep runs in sequence, so a
+    # measure-only run would silently disable retries for everything after it.
+    if (-not $all.ContainsKey("CRITIC_RETRY_ENABLED")) { $all["CRITIC_RETRY_ENABLED"] = "true" }
     foreach ($k in $all.Keys) {
         $line = "$k=$($all[$k])"
         if ($text -match "(?m)^$k=") {

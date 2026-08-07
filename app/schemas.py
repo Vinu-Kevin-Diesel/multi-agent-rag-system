@@ -55,6 +55,7 @@ class AblationFlags(BaseModel):
     router_model: str
     decompose_enabled: bool
     critic_mode: str
+    critic_retry_enabled: bool
 
 
 class HealthResponse(BaseModel):
